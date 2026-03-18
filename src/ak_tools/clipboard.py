@@ -9,8 +9,7 @@ import subprocess
 import sys
 
 COPY_ALIASES: dict[str, str] = {
-    "attach": "docker attach ashok_trt8",
-    "reprocess": """git clean -fdx
+    "reprocess_build": """git clean -fdx
 make -j8 -C /data4/ashok/REPROCESSING/analytics  all PYTHON3=1 PROC_ENV_KPI=1 REPROCESS=1
     """,
 "analytics_ignore": """/ipe/
