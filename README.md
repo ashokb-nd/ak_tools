@@ -2,8 +2,6 @@
 
 Personal Python library template using a modern `src` layout and `pyproject.toml` packaging.
 
-## Part 1: Crisp
-
 ### What this is
 
 - Reusable personal Python toolbox
@@ -23,142 +21,55 @@ pip install -e .
 ```bash
 ak hi
 ak clean_log
-ak clean_log drowsy_moderate --exclude heartbeat --exclude debug
-ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models
-ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --force_download
-ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --save_logfile
-ak fetch_all_models
-ak change_config /path/to/nd_config_source.ini
-ak change_config /path/to/nd_config_source.ini --section driverstar_shoulder
-ak copy docker attach ashok_trt8
-ak copy "make -j8 -C /data4/ashok/REPROCESSING/analytics all PYTHON3=1 PROC_ENV_KPI=1 REPROCESS=1"
-ak copy
-ak copy attach
 
-# standalone AVC command
-avc --help
-avc --input_type aaid 27810b25-b435-4108-b04f-9aafca0aec85
-avc --input_type alert_id 12345 67890
-avc --file /path/to/ids.csv --input_type alert_id --processes 9 --tail 1000 --output results.csv
-```
+Minimal personal toolbox with two CLIs: `ak` and `avc`.
 
-`ak clean_log` writes output to `analytics_filtered.log`.
-
-```python
-from ak_tools import __version__
-
-print(__version__)
-```
-
----
-
-## Part 2: Detailed
-
-### Project structure
-
-```text
-ak_tools/
-├── src/
-│   └── ak_tools/
-│       ├── __init__.py
-│       ├── analytics_log_parser.py
-│       ├── avc_api.py
-│       ├── avc_cli.py
-│       ├── cli.py
-│       ├── config_manager.py
-│       └── model_fetcher.py
-├── pyproject.toml
-└── README.md
-```
-
-### Setup steps
-
-1. Create and activate a virtual environment.
-2. Install the project in editable mode:
+## Setup
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
 
-### Usage
-
-#### Import from Python
-
-```python
-from ak_tools import __version__
-
-print(__version__)
-```
-
-#### Run the CLI
-
-After editable install, these commands are available:
+## Core commands
 
 ```bash
 ak --help
 ak hi
 ak clean_log
-ak clean_log drowsy_moderate --exclude heartbeat --exclude debug
-ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models
-ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --force_download
-ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --save_logfile
 ak fetch_all_models
 ak change_config /path/to/nd_config_source.ini
-ak change_config /path/to/nd_config_source.ini --section driverstar_shoulder
-ak copy docker attach ashok_trt8
-ak copy "make -j8 -C /data4/ashok/REPROCESSING/analytics all PYTHON3=1 PROC_ENV_KPI=1 REPROCESS=1"
 ak copy
-ak copy attach
+ak copy <alias-or-text>
 
 avc --help
-avc --input_type aaid 27810b25-b435-4108-b04f-9aafca0aec85
-avc --input_type alert_id 12345 67890
-avc --file /path/to/ids.csv --input_type alert_id --processes 9 --tail 1000 --output results.csv
+avc --input_type alert_id 12345
+avc --file /path/to/ids.csv --input_type alert_id --output results.csv
 ```
 
-`ak fetch_all_models` stores defaults in `~/.ak_tools/config.ini` and prints effective values every run.
+## Notes
 
-`ak copy` uses system clipboard tools when available. In headless SSH sessions, it falls back to `tmux` buffer and OSC52 terminal clipboard (if supported by your terminal).
-If clipboard access is blocked, it prints the exact text so you can copy manually without command failure.
-Aliases are defined directly in `src/ak_tools/clipboard.py` under `COPY_ALIASES` for easy editing.
-Run `ak copy` (without arguments) to see all available aliases, then `ak copy <alias>` to copy one.
-Running `ak copy` (without arguments) prints all available aliases.
+- `ak clean_log` writes `analytics_filtered.log`.
+- `ak fetch_all_models` persists defaults in `~/.ak_tools/config.ini`.
+- `ak copy` lists aliases when run without arguments.
+- `avc` accepts either direct IDs or `--file` (not both).
 
-`avc` accepts either direct IDs or `--file` input (not both in the same call).
+## Shell autocomplete
 
-#### fetch_all_models INI defaults
-
-- Precedence: CLI flags > `~/.ak_tools/config.ini` > built-in defaults.
-- Built-in defaults:
-	- `config_path`: `/data4/ashok/REPROCESSING/analytics/src/nd_config_bagheera2_NA_US.ini`
-	- `local_path`: `/data4/ashok/REPROCESSING/autocam`
-	- `save_logfile`: `False`
-
-Example INI:
-
-```ini
-[fetch_all_models]
-config_path = /data4/ashok/REPROCESSING/analytics/src/nd_config_bagheera2_NA_US.ini
-local_path = /data4/ashok/REPROCESSING/autocam
-save_logfile = False
-```
-
-### Cleanup
+### bash
 
 ```bash
-# remove generated fetch log (if --save_logfile was used)
-rm -f fetch_all_models.log
-
-# remove persisted CLI defaults
-rm -f ~/.ak_tools/config.ini
-
-# remove downloaded model directory (example)
-rm -rf /path/to/local_models
+echo 'eval "$(_AK_COMPLETE=bash_source ak)"' >> ~/.bashrc
+echo 'eval "$(_AVC_COMPLETE=bash_source avc)"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
-#### Shell autocompletion (zsh)
+### zsh
 
 ```bash
 echo 'eval "$(env _AK_COMPLETE=zsh_source ak)"' >> ~/.zshrc
+echo 'eval "$(env _AVC_COMPLETE=zsh_source avc)"' >> ~/.zshrc
 source ~/.zshrc
 ```
+
