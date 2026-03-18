@@ -1,6 +1,11 @@
 """Data utility functions for reusable processing logic."""
 
 
+def hi() -> None:
+    """Print a simple greeting for quick smoke tests."""
+    print("hi")
+
+
 def calculate_lane_score(deviation: float, decay: float = 0.1) -> float:
     """Calculate a simple lane score.
 

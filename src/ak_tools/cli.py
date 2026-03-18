@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from .data_utils import calculate_lane_score
+from .data_utils import calculate_lane_score, hi
 
 
 @click.group(help="My personal work toolbox.")
@@ -64,6 +64,15 @@ def report_cmd(output: Path) -> None:
     """Generate a report artifact."""
     try:
         click.echo(f"Done. report={output}")
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@cli.command("hi", help="Print a quick greeting for CLI smoke testing.")
+def hi_cmd() -> None:
+    """Print a simple hi message."""
+    try:
+        hi()
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 

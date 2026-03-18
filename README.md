@@ -21,11 +21,14 @@ pip install -e .
 ### Quick use
 
 ```bash
+ak-tools hi
 ak-tools process --input data.csv --deviation 0.24 --decay 0.1
 ```
 
 ```python
-from ak_tools.data_utils import calculate_lane_score
+from ak_tools import hi, calculate_lane_score
+
+hi()
 print(calculate_lane_score(0.24))
 ```
 
@@ -73,6 +76,7 @@ After editable install, these commands are available:
 
 ```bash
 ak-tools --help
+ak-tools hi
 ak-tools process --input data.csv --threshold 0.5 --deviation 0.24 --decay 0.1
 ak-tools analyze --source prepared.csv
 ak-tools report --output report.md
