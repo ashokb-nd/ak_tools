@@ -13,6 +13,10 @@ COPY_ALIASES: dict[str, str] = {
     "reprocess": """git clean -fdx
 make -j8 -C /data4/ashok/REPROCESSING/analytics  all PYTHON3=1 PROC_ENV_KPI=1 REPROCESS=1
     """,
+"analytics_ignore": """/ipe/
+/proto/
+/analytics_service/
+*.c"""
 }
 
 
