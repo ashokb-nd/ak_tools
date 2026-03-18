@@ -33,10 +33,9 @@ ak fetch_all_models
 `ak clean_log` writes output to `analytics_filtered.log`.
 
 ```python
-from ak_tools import hi, calculate_lane_score
+from ak_tools import __version__
 
-hi()
-print(calculate_lane_score(0.24))
+print(__version__)
 ```
 
 ---
@@ -50,9 +49,9 @@ ak_tools/
 ├── src/
 │   └── ak_tools/
 │       ├── __init__.py
+│       ├── analytics_log_parser.py
 │       ├── cli.py
-│       ├── data_utils.py
-│       └── plot_helper.py
+│       └── model_fetcher.py
 ├── pyproject.toml
 └── README.md
 ```
@@ -71,10 +70,9 @@ pip install -e .
 #### Import from Python
 
 ```python
-from ak_tools.data_utils import calculate_lane_score
+from ak_tools import __version__
 
-score = calculate_lane_score(0.24)
-print(score)
+print(__version__)
 ```
 
 #### Run the CLI

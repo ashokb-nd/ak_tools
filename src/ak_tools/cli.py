@@ -13,7 +13,6 @@ from pathlib import Path
 import click
 
 from .analytics_log_parser import clean_log_in_folder
-from .data_utils import hi
 from .model_fetcher import fetch_all_models
 
 
@@ -85,7 +84,7 @@ def cli() -> None:
 def hi_cmd() -> None:
     """Print a simple hi message."""
     try:
-        hi()
+        click.echo("hi")
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 
