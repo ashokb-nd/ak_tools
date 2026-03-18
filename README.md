@@ -24,7 +24,6 @@ pip install -e .
 ak hi
 ak clean_log
 ak clean_log drowsy_moderate hard_brake
-ak process --input data.csv --deviation 0.24 --decay 0.1
 ```
 
 `ak clean_log` writes output to `analytics_filtered.log`.
@@ -80,19 +79,10 @@ After editable install, these commands are available:
 
 ```bash
 ak --help
-ak hi
+ak utils hi
 ak clean_log
 ak clean_log drowsy_moderate hard_brake
 ak clean_log --folder /path/to/logs custom_kw1 custom_kw2
-ak process --input data.csv --threshold 0.5 --deviation 0.24 --decay 0.1
-ak analyze --source prepared.csv
-ak report --output report.md
-```
-
-Backward-compatible command alias:
-
-```bash
-process-data --input data.csv --deviation 0.24 --decay 0.1
 ```
 
 #### Shell autocompletion (zsh)
