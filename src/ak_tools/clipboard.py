@@ -24,11 +24,6 @@ def get_copy_aliases() -> dict[str, str]:
     return dict(sorted(COPY_ALIASES.items(), key=lambda item: item[0]))
 
 
-def resolve_copy_alias(text: str) -> str:
-    """Resolve alias to command text, or return original text if alias is not found."""
-    return COPY_ALIASES.get(text, text)
-
-
 def _copy_with_tool(command: list[str], text: str) -> bool:
     """Try to copy text using a clipboard command. Return True on success."""
     try:

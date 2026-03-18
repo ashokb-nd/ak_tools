@@ -11,7 +11,7 @@ import click
 import sys
 
 from .analytics_log_parser import clean_log_in_folder
-from .clipboard import get_copy_aliases, resolve_copy_alias, try_copy_to_clipboard
+from .clipboard import get_copy_aliases, try_copy_to_clipboard
 from .config_manager import ConfigManager
 from .model_fetcher import fetch_all_models
 from ak_tools.change_configs import copy_section_to_other_configs
@@ -124,13 +124,14 @@ def change_config_cmd(config_path: str, section_name: str) -> None:
         raise click.ClickException(str(exc)) from exc
 
 
-@cli.command("copy", help="Copy text/command to clipboard for quick paste.")
-@click.argument("text", nargs=-1)
-def copy_cmd(text: tuple[str, ...]) -> None:
-    """Copy provided text to clipboard."""
+@cli.command("copy", help="Copy a configured alias to clipboard.")
+@click.argument("alias", required=False)
+def copy_cmd(alias: str | None) -> None:
+    """Copy configured alias value to clipboard."""
     try:
-        if not text:
-            aliases = get_copy_aliases()
+        aliases = get_copy_aliases()
+
+        if alias is None:
             if not aliases:
                 click.echo("No aliases configured.")
                 return
@@ -139,10 +140,11 @@ def copy_cmd(text: tuple[str, ...]) -> None:
                 click.echo(alias)
             return
 
-        if len(text) == 1:
-            value = resolve_copy_alias(text[0])
-        else:
-            value = " ".join(text).strip()
+        value = aliases.get(alias)
+        if value is None:
+            raise click.ClickException(
+                f"Unknown alias: {alias}. Run `ak copy` to list aliases."
+            )
 
         backend = try_copy_to_clipboard(value)
         if backend is not None:
