@@ -8,7 +8,7 @@ Personal Python library template using a modern `src` layout and `pyproject.toml
 
 - Reusable personal Python toolbox
 - Install once in editable mode, use from anywhere
-- Includes a CLI (`ak-tools`) + importable modules
+- Includes a CLI (`ak`) + importable modules
 
 ### Quick setup
 
@@ -21,9 +21,13 @@ pip install -e .
 ### Quick use
 
 ```bash
-ak-tools hi
-ak-tools process --input data.csv --deviation 0.24 --decay 0.1
+ak hi
+ak clean_log
+ak clean_log drowsy_moderate hard_brake
+ak process --input data.csv --deviation 0.24 --decay 0.1
 ```
+
+`ak clean_log` writes output to `analytics_filtered.log`.
 
 ```python
 from ak_tools import hi, calculate_lane_score
@@ -75,11 +79,14 @@ print(score)
 After editable install, these commands are available:
 
 ```bash
-ak-tools --help
-ak-tools hi
-ak-tools process --input data.csv --threshold 0.5 --deviation 0.24 --decay 0.1
-ak-tools analyze --source prepared.csv
-ak-tools report --output report.md
+ak --help
+ak hi
+ak clean_log
+ak clean_log drowsy_moderate hard_brake
+ak clean_log --folder /path/to/logs custom_kw1 custom_kw2
+ak process --input data.csv --threshold 0.5 --deviation 0.24 --decay 0.1
+ak analyze --source prepared.csv
+ak report --output report.md
 ```
 
 Backward-compatible command alias:
@@ -91,6 +98,6 @@ process-data --input data.csv --deviation 0.24 --decay 0.1
 #### Shell autocompletion (zsh)
 
 ```bash
-echo 'eval "$(env _AK_TOOLS_COMPLETE=zsh_source ak-tools)"' >> ~/.zshrc
+echo 'eval "$(env _AK_COMPLETE=zsh_source ak)"' >> ~/.zshrc
 source ~/.zshrc
 ```
