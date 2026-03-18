@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
-def clean_log_in_folder(folder: str = ".", extra_keywords: tuple[str, ...] = ()) -> str:
+def clean_log_in_folder(
+    folder: str = ".",
+    include_keywords: tuple[str, ...] = (),
+    exclude_keywords: tuple[str, ...] = (),
+) -> str:
     DEFAULT_KEYWORDS = ["drowsy_sensor_fusion", "drowsy_severe", "LaneEncroachment"]
     input_filename = "analytics.log"
     output_filename = "analytics_filtered.log"
@@ -15,8 +19,13 @@ def clean_log_in_folder(folder: str = ".", extra_keywords: tuple[str, ...] = ())
     with analytics_file.open("r") as file:
         data = file.readlines()
 
-    words = list(extra_keywords) if extra_keywords else DEFAULT_KEYWORDS
-    data_filtered = [line for line in data if any(word in line for word in words)]
+    include_words = list(include_keywords) if include_keywords else DEFAULT_KEYWORDS
+    data_filtered = [
+        line
+        for line in data
+        if any(word in line for word in include_words)
+        and not any(word in line for word in exclude_keywords)
+    ]
 
     data_cleaned = [" ".join(line.split(" - ")[2:]) for line in data_filtered]
 

@@ -23,7 +23,7 @@ pip install -e .
 ```bash
 ak hi
 ak clean_log
-ak clean_log drowsy_moderate hard_brake
+ak clean_log drowsy_moderate --exclude heartbeat --exclude debug
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --force_download
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --save_logfile
@@ -85,8 +85,7 @@ After editable install, these commands are available:
 ak --help
 ak hi
 ak clean_log
-ak clean_log drowsy_moderate hard_brake
-ak clean_log --folder /path/to/logs custom_kw1 custom_kw2
+ak clean_log drowsy_moderate --exclude heartbeat --exclude debug
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --force_download
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --save_logfile

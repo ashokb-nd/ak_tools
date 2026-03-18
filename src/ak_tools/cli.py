@@ -90,13 +90,23 @@ def hi_cmd() -> None:
         raise click.ClickException(str(exc)) from exc
 
 
-@cli.command("clean_log", help="Find analytics.log and save analytics_filtered.log, with optional extra keywords.")
+@cli.command("clean_log", help="Find analytics.log and save analytics_filtered.log. Include words are positional; exclude words use --exclude.")
 @click.option("--folder", default=".", show_default=True, help="Folder containing analytics.log")
-@click.argument("keywords", nargs=-1)
-def clean_log_cmd(folder: str, keywords: tuple[str, ...]) -> None:
-    """Clean analytics.log in the given folder and allow extra filter keywords."""
+@click.option(
+    "--exclude",
+    "exclude_words",
+    multiple=True,
+    help="Exclude lines containing these words. Repeat the option for multiple words.",
+)
+@click.argument("include_words", nargs=-1)
+def clean_log_cmd(folder: str, exclude_words: tuple[str, ...], include_words: tuple[str, ...]) -> None:
+    """Clean analytics.log in the given folder with include and exclude keyword sets."""
     try:
-        output_file = clean_log_in_folder(folder=folder, extra_keywords=keywords)
+        output_file = clean_log_in_folder(
+            folder=folder,
+            include_keywords=include_words,
+            exclude_keywords=exclude_words,
+        )
         click.echo(f"Filtered log saved to: {output_file}")
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
