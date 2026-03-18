@@ -12,6 +12,7 @@ import click
 from .analytics_log_parser import clean_log_in_folder
 from .config_manager import ConfigManager
 from .model_fetcher import fetch_all_models
+from ak_tools.change_configs import copy_section_to_other_configs
 
 CONFIG_MANAGER = ConfigManager()
 FETCH_SECTION = "fetch_all_models"
@@ -97,6 +98,26 @@ def fetch_all_models_cmd(
             save_logfile=resolved_save_logfile,
         )
         click.echo(f"Completed model fetch workflow. Models discovered: {count}")
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@cli.command("change_config", help="Copy one section from a source config into sibling nd_config_*.ini files.")
+@click.argument("config_path", type=click.Path(exists=True, dir_okay=False, path_type=str))
+@click.option(
+    "--section",
+    "section_name",
+    default="drowsy_sensor_fusion",
+    show_default=True,
+    help="Section name to copy (without brackets).",
+)
+def change_config_cmd(config_path: str, section_name: str) -> None:
+    """Copy a section from one INI into all other sibling nd_config_*.ini files."""
+    try:
+        updated_count, scanned_count = copy_section_to_other_configs(config_path, section_name)
+        click.echo(f"Section [{section_name}] copied from: {config_path}")
+        click.echo(f"Target configs scanned: {scanned_count}")
+        click.echo(f"Configs updated: {updated_count}")
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 

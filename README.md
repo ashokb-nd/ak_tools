@@ -28,6 +28,8 @@ ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_mod
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --force_download
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --save_logfile
 ak fetch_all_models
+ak change_config /path/to/nd_config_source.ini
+ak change_config /path/to/nd_config_source.ini --section driverstar_shoulder
 
 # standalone AVC command
 avc --help
@@ -97,6 +99,8 @@ ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_mod
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --force_download
 ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --save_logfile
 ak fetch_all_models
+ak change_config /path/to/nd_config_source.ini
+ak change_config /path/to/nd_config_source.ini --section driverstar_shoulder
 
 avc --help
 avc --input_type aaid 27810b25-b435-4108-b04f-9aafca0aec85
