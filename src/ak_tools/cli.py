@@ -7,72 +7,19 @@ click - group, command, option, argument, echo, ClickException
 
 from __future__ import annotations
 
-import configparser
-from pathlib import Path
-
 import click
 
 from .analytics_log_parser import clean_log_in_folder
+from .config_manager import ConfigManager
 from .model_fetcher import fetch_all_models
 
-
-DEFAULT_FETCH_CONFIG_PATH = "/data4/ashok/REPROCESSING/analytics/src/nd_config_bagheera2_NA_US.ini"
-DEFAULT_FETCH_LOCAL_PATH = "/data4/ashok/REPROCESSING/autocam"
-USER_CONFIG_PATH = Path.home() / ".ak_tools" / "config.ini"
+CONFIG_MANAGER = ConfigManager()
 FETCH_SECTION = "fetch_all_models"
-
-
-def _read_user_config() -> configparser.ConfigParser:
-    """Read user-level ak_tools config if present."""
-    config = configparser.ConfigParser()
-    if USER_CONFIG_PATH.exists():
-        config.read(USER_CONFIG_PATH)
-    return config
-
-
-def _write_fetch_defaults(config_path: str, local_path: str, save_logfile: bool) -> None:
-    """Persist fetch defaults to user config file."""
-    config = _read_user_config()
-    if FETCH_SECTION not in config:
-        config[FETCH_SECTION] = {}
-
-    config[FETCH_SECTION]["config_path"] = config_path
-    config[FETCH_SECTION]["local_path"] = local_path
-    config[FETCH_SECTION]["save_logfile"] = str(save_logfile)
-
-    USER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with USER_CONFIG_PATH.open("w") as file_handle:
-        config.write(file_handle)
-
-
-def _resolve_fetch_settings(
-    config_path: str | None,
-    local_path: str | None,
-    save_logfile: bool | None,
-) -> tuple[str, str, bool]:
-    """Resolve effective fetch settings from CLI args and INI defaults."""
-    user_config = _read_user_config()
-    resolved_config_path = config_path or user_config.get(
-        FETCH_SECTION,
-        "config_path",
-        fallback=DEFAULT_FETCH_CONFIG_PATH,
-    )
-    resolved_local_path = local_path or user_config.get(
-        FETCH_SECTION,
-        "local_path",
-        fallback=DEFAULT_FETCH_LOCAL_PATH,
-    )
-
-    if save_logfile is None:
-        resolved_save_logfile = user_config.getboolean(
-            FETCH_SECTION,
-            "save_logfile",
-            fallback=False,
-        )
-    else:
-        resolved_save_logfile = save_logfile
-
-    return resolved_config_path, resolved_local_path, resolved_save_logfile
+FETCH_DEFAULTS: dict[str, str | bool] = {
+    "config_path": "/data4/ashok/REPROCESSING/analytics/src/nd_config_bagheera2_NA_US.ini",
+    "local_path": "/data4/ashok/REPROCESSING/autocam",
+    "save_logfile": False,
+}
 
 
 @click.group(help="My personal work toolbox.")
@@ -124,23 +71,24 @@ def fetch_all_models_cmd(
 ) -> None:
     """Download all configured models from S3."""
     try:
-        resolved_config_path, resolved_local_path, resolved_save_logfile = _resolve_fetch_settings(
-            config_path=config_path,
-            local_path=local_path,
-            save_logfile=save_logfile,
+        resolved = CONFIG_MANAGER.resolve_and_persist(
+            section=FETCH_SECTION,
+            defaults=FETCH_DEFAULTS,
+            overrides={
+                "config_path": config_path,
+                "local_path": local_path,
+                "save_logfile": save_logfile,
+            },
         )
-
-        _write_fetch_defaults(
-            config_path=resolved_config_path,
-            local_path=resolved_local_path,
-            save_logfile=resolved_save_logfile,
-        )
+        resolved_config_path = str(resolved["config_path"])
+        resolved_local_path = str(resolved["local_path"])
+        resolved_save_logfile = bool(resolved["save_logfile"])
 
         click.echo("Using fetch_all_models settings:")
         click.echo(f"  config: {resolved_config_path}")
         click.echo(f"  local_path: {resolved_local_path}")
         click.echo(f"  save_logfile: {resolved_save_logfile}")
-        click.echo(f"  user_ini: {USER_CONFIG_PATH}")
+        click.echo(f"  user_ini: {CONFIG_MANAGER.user_config_path}")
 
         count = fetch_all_models(
             config_path=resolved_config_path,
