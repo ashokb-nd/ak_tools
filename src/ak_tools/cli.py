@@ -32,7 +32,7 @@ def cli() -> None:
 def hi_cmd() -> None:
     """Print a simple hi message."""
     try:
-        click.echo("hi")
+        click.echo("hi bro!")
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 
