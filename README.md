@@ -24,6 +24,10 @@ pip install -e .
 ak hi
 ak clean_log
 ak clean_log drowsy_moderate hard_brake
+ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models
+ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --force_download
+ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --save_logfile
+ak fetch_all_models
 ```
 
 `ak clean_log` writes output to `analytics_filtered.log`.
@@ -79,10 +83,46 @@ After editable install, these commands are available:
 
 ```bash
 ak --help
-ak utils hi
+ak hi
 ak clean_log
 ak clean_log drowsy_moderate hard_brake
 ak clean_log --folder /path/to/logs custom_kw1 custom_kw2
+ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models
+ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --force_download
+ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_models --save_logfile
+ak fetch_all_models
+```
+
+`ak fetch_all_models` stores defaults in `~/.ak_tools/config.ini` and prints effective values every run.
+
+#### fetch_all_models INI defaults
+
+- Precedence: CLI flags > `~/.ak_tools/config.ini` > built-in defaults.
+- Built-in defaults:
+	- `config_path`: `/data4/ashok/REPROCESSING/analytics/src/nd_config_bagheera2_US.ini`
+	- `local_path`: `/data4/ashok/REPROCESSING/autocam`
+	- `save_logfile`: `False`
+
+Example INI:
+
+```ini
+[fetch_all_models]
+config_path = /data4/ashok/REPROCESSING/analytics/src/nd_config_bagheera2_US.ini
+local_path = /data4/ashok/REPROCESSING/autocam
+save_logfile = False
+```
+
+### Cleanup
+
+```bash
+# remove generated fetch log (if --save_logfile was used)
+rm -f fetch_all_models.log
+
+# remove persisted CLI defaults
+rm -f ~/.ak_tools/config.ini
+
+# remove downloaded model directory (example)
+rm -rf /path/to/local_models
 ```
 
 #### Shell autocompletion (zsh)
