@@ -20,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 ak = "ak_tools.cli:main"
+avc = "ak_tools.avc_cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
