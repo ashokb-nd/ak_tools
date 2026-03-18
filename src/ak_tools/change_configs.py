@@ -40,7 +40,7 @@ def extract_section_block(config_path: str | Path, section_name: str) -> str:
         raise ValueError(f"Section [{section_name}] not found in {path}")
 
     start_index, end_index = bounds
-    return "".join(lines[start_index:end_index]).rstrip("\n") + "\n"
+    return "".join(lines[start_index:end_index])
 
 
 def replace_or_append_section(config_path: str | Path, section_name: str, section_block: str) -> bool:
