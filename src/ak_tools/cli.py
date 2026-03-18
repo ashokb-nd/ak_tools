@@ -8,8 +8,10 @@ click - group, command, option, argument, echo, ClickException
 from __future__ import annotations
 
 import click
+import sys
 
 from .analytics_log_parser import clean_log_in_folder
+from .clipboard import get_copy_aliases, resolve_copy_alias, try_copy_to_clipboard
 from .config_manager import ConfigManager
 from .model_fetcher import fetch_all_models
 from ak_tools.change_configs import copy_section_to_other_configs
@@ -118,6 +120,38 @@ def change_config_cmd(config_path: str, section_name: str) -> None:
         click.echo(f"Section [{section_name}] copied from: {config_path}")
         click.echo(f"Target configs scanned: {scanned_count}")
         click.echo(f"Configs updated: {updated_count}")
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@cli.command("copy", help="Copy text/command to clipboard for quick paste.")
+@click.argument("text", nargs=-1)
+def copy_cmd(text: tuple[str, ...]) -> None:
+    """Copy provided text to clipboard."""
+    try:
+        if not text:
+            aliases = get_copy_aliases()
+            if not aliases:
+                click.echo("No aliases configured.")
+                return
+
+            for alias in aliases:
+                click.echo(alias)
+            return
+
+        if len(text) == 1:
+            value = resolve_copy_alias(text[0])
+        else:
+            value = " ".join(text).strip()
+
+        backend = try_copy_to_clipboard(value)
+        if backend is not None:
+            click.echo("Copied.")
+            return
+
+        click.echo("Clipboard unavailable.", err=True)
+        click.echo(value)
+        sys.exit(0)
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 

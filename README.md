@@ -30,6 +30,10 @@ ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_mod
 ak fetch_all_models
 ak change_config /path/to/nd_config_source.ini
 ak change_config /path/to/nd_config_source.ini --section driverstar_shoulder
+ak copy docker attach ashok_trt8
+ak copy "make -j8 -C /data4/ashok/REPROCESSING/analytics all PYTHON3=1 PROC_ENV_KPI=1 REPROCESS=1"
+ak copy
+ak copy attach
 
 # standalone AVC command
 avc --help
@@ -101,6 +105,10 @@ ak fetch_all_models --config /path/to/config.ini --local_path /path/to/local_mod
 ak fetch_all_models
 ak change_config /path/to/nd_config_source.ini
 ak change_config /path/to/nd_config_source.ini --section driverstar_shoulder
+ak copy docker attach ashok_trt8
+ak copy "make -j8 -C /data4/ashok/REPROCESSING/analytics all PYTHON3=1 PROC_ENV_KPI=1 REPROCESS=1"
+ak copy
+ak copy attach
 
 avc --help
 avc --input_type aaid 27810b25-b435-4108-b04f-9aafca0aec85
@@ -109,6 +117,12 @@ avc --file /path/to/ids.csv --input_type alert_id --processes 9 --tail 1000 --ou
 ```
 
 `ak fetch_all_models` stores defaults in `~/.ak_tools/config.ini` and prints effective values every run.
+
+`ak copy` uses system clipboard tools when available. In headless SSH sessions, it falls back to `tmux` buffer and OSC52 terminal clipboard (if supported by your terminal).
+If clipboard access is blocked, it prints the exact text so you can copy manually without command failure.
+Aliases are defined directly in `src/ak_tools/clipboard.py` under `COPY_ALIASES` for easy editing.
+Run `ak copy` (without arguments) to see all available aliases, then `ak copy <alias>` to copy one.
+Running `ak copy` (without arguments) prints all available aliases.
 
 `avc` accepts either direct IDs or `--file` input (not both in the same call).
 
