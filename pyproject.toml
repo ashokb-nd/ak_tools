@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ak_tools"
+version = "0.1.0"
+description = "Common scripts for data engineering and computer vision"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Your Name" }
+]
+dependencies = [
+  "click>=8.1",
+  "numpy",
+  "pandas",
+  "opencv-python"
+]
+
+[project.scripts]
+ak-tools = "ak_tools.cli:main"
+process-data = "ak_tools.cli:process_data_entry"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
