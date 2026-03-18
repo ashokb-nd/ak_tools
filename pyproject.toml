@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ak_tools"
+name = "ak"
 version = "0.1.0"
 description = "Common scripts for data engineering and computer vision"
 readme = "README.md"
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ak-tools = "ak_tools.cli:main"
+ak = "ak_tools.cli:main"
 process-data = "ak_tools.cli:process_data_entry"
 
 [tool.setuptools]
