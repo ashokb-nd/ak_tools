@@ -17,7 +17,7 @@ from .data_utils import hi
 from .model_fetcher import fetch_all_models
 
 
-DEFAULT_FETCH_CONFIG_PATH = "/data4/ashok/REPROCESSING/analytics/src/nd_config_bagheera2_US.ini"
+DEFAULT_FETCH_CONFIG_PATH = "/data4/ashok/REPROCESSING/analytics/src/nd_config_bagheera2_NA_US.ini"
 DEFAULT_FETCH_LOCAL_PATH = "/data4/ashok/REPROCESSING/autocam"
 USER_CONFIG_PATH = Path.home() / ".ak_tools" / "config.ini"
 FETCH_SECTION = "fetch_all_models"
