@@ -42,6 +42,7 @@ ak fetch_all_models
 ak change_config /path/to/nd_config_source.ini
 ak copy
 ak copy <alias-or-text>
+ak neo [--port PORT] [--host HOST] [--offline] [--outdir PATH]
 
 avc --help
 avc --input_type alert_id 12345
@@ -54,6 +55,31 @@ avc --file /path/to/ids.csv --input_type alert_id --output results.csv
 - `ak fetch_all_models` persists defaults in `~/.ak_tools/config.ini`.
 - `ak copy` lists aliases when run without arguments.
 - `avc` accepts either direct IDs or `--file` (not both).
+- `ak neo` starts an S3 file content downloader server with local storage caching.
+
+### Storage Location for `ak neo`
+
+The `ak neo` command caches metadata files in `~/.neokpi_storage/`:
+
+```
+~/.neokpi_storage/
+├── {alert_id_1}.json
+├── {alert_id_2}.json
+└── ...
+```
+
+**Default behavior:**
+- All cached files are stored in `~/.neokpi_storage/` by default
+- The `--outdir` flag is optional and used for additional custom metadata lookup paths
+
+**Example usage:**
+```bash
+ak neo                                          # Default: localhost:8080, cache at ~/.neokpi_storage/
+ak neo --port 9000                             # Custom port
+ak neo --host 0.0.0.0                          # Accessible from network
+ak neo --offline                               # Local storage only (no AWS)
+ak neo --outdir /custom/path/to/metadata       # Check custom path first, then fall back to ~/.neokpi_storage/
+```
 
 ## Shell autocomplete
 

@@ -15,6 +15,7 @@ from .clipboard import get_copy_aliases, try_copy_to_clipboard
 from .config_manager import ConfigManager
 from .model_fetcher import fetch_all_models
 from ak_tools.change_configs import copy_section_to_other_configs
+from .s3_presigner import main as s3_presigner_main
 
 CONFIG_MANAGER = ConfigManager()
 FETCH_SECTION = "fetch_all_models"
@@ -154,6 +155,25 @@ def copy_cmd(alias: str | None) -> None:
         click.echo("Clipboard unavailable.", err=True)
         click.echo(value)
         sys.exit(0)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@cli.command("neo", help="Start the neokpi S3 file content server with local storage support.")
+@click.option("--port", type=int, default=8080, show_default=True, help="Port to run the server on.")
+@click.option("--host", default="localhost", show_default=True, help="Host to bind to.")
+@click.option("--offline", is_flag=True, help="Run in offline mode (local storage only, no AWS).")
+@click.option("--outdir", default=None, help="Output directory for metadata storage (optional, for custom lookups).")
+def neo_cmd(port: int, host: str, offline: bool, outdir: str | None) -> None:
+    """Start the neokpi S3 file content downloader server."""
+    try:
+        # Convert Click arguments to argparse-like format for the original main function
+        sys.argv = ["ak", "--port", str(port), "--host", host]
+        if outdir:
+            sys.argv.extend(["--outdir", outdir])
+        if offline:
+            sys.argv.append("--offline")
+        s3_presigner_main()
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 
