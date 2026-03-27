@@ -19,7 +19,7 @@ from .config_manager import ConfigManager
 from .model_fetcher import fetch_all_models
 from ak_tools.change_configs import copy_section_to_other_configs
 from .s3_presigner import main as s3_presigner_main
-from .sync_alert import download_alerts, LOCAL_STORAGE_DIR
+from .sync_alert import download_alerts, LOCAL_STORAGE_DIR, s3_sync_path, sync_folder_to_s3
 
 CONFIG_MANAGER = ConfigManager()
 FETCH_SECTION = "fetch_all_models"
@@ -192,8 +192,9 @@ def neo_s3_presigner_cmd(port: int, host: str, offline: bool, outdir: str | None
 @click.argument("filepath", type=click.Path(exists=True, dir_okay=False, path_type=str))
 @click.option("--alert_type", default=None, help="Optional input type override: alert_id, avid, or aaid.")
 @click.option("--env", default="production", show_default=True, help="Environment for AVC API lookup.")
-@click.option("--downscale/--no-downscale", default=False, show_default=True, help="Downscale mp4 files after download.")
-def neo_add_cmd(filepath: str, alert_type: str | None, env: str, downscale: bool) -> None:
+@click.option("--downscale/--no-downscale", default=True, show_default=True, help="Downscale mp4 files after download.")
+@click.option("--sync-s3", is_flag=True, help="Sync downloaded data to configured S3 path.")
+def neo_add_cmd(filepath: str, alert_type: str | None, env: str, downscale: bool, sync_s3: bool) -> None:
     """Download alerts listed in a file using sync_alert.download_alerts."""
     try:
         logging.basicConfig(
@@ -223,6 +224,7 @@ def neo_add_cmd(filepath: str, alert_type: str | None, env: str, downscale: bool
             alert_type=alert_type,
             env=env,
             downscale=downscale,
+            sync_s3_uri=s3_sync_path if sync_s3 else None,
         )
         click.echo('Done.')
     except Exception as exc:
@@ -247,6 +249,27 @@ def neo_clean_cmd() -> None:
 
         shutil.rmtree(LOCAL_STORAGE_DIR)
         click.echo(f'Cleared: {LOCAL_STORAGE_DIR}')
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@neo_group.command("sync-s3", help="Sync LOCAL_STORAGE_DIR to configured S3 path.")
+def neo_sync_s3_cmd() -> None:
+    """Upload local neokpi storage to s3_sync_path."""
+    try:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)-07s - %(name)-025s - %(message)s',
+            stream=sys.stdout,
+            force=True,
+        )
+
+        if not osp.exists(LOCAL_STORAGE_DIR):
+            raise click.ClickException(f'Local storage directory not found: {LOCAL_STORAGE_DIR}')
+
+        click.echo(f'Syncing {LOCAL_STORAGE_DIR} -> {s3_sync_path}')
+        sync_folder_to_s3(LOCAL_STORAGE_DIR, s3_sync_path)
+        click.echo('Done.')
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 
