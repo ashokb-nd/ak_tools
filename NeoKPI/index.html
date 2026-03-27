@@ -72,24 +72,39 @@
         <section class="telemetry-panel" id="telemetry-panel">
           <div class="telemetry-header">
             <h3>Telemetry</h3>
+            <div class="telemetry-layout-tools">
+              <span class="telemetry-layout-hint">Drag cards to reorder</span>
+              <button id="telemetry-layout-reset" type="button">Reset Layout</button>
+            </div>
             <div class="telemetry-values">
               <span class="telemetry-pill" id="telemetry-lane-value">PIL: --</span>
               <span class="telemetry-pill" id="telemetry-lateral-value">Acc Y: --</span>
               <span class="telemetry-pill" id="telemetry-driving-value">Acc Z: --</span>
+              <span class="telemetry-pill" id="telemetry-yaw-value">Yaw: --</span>
             </div>
           </div>
-          <div class="telemetry-grid">
-            <div class="telemetry-chart-card">
+          <div class="telemetry-grid" id="telemetry-grid">
+            <div class="telemetry-chart-card" data-graph-key="lane">
               <div class="telemetry-chart-title">Position In Lane (Corrected)</div>
               <div id="telemetry-lane-chart" class="telemetry-plot"></div>
             </div>
-            <div class="telemetry-chart-card">
+            <div class="telemetry-chart-card" data-graph-key="inertial">
               <div class="telemetry-chart-title">Inertial Signals</div>
               <div class="telemetry-inertial-layout">
                 <div id="telemetry-inertial-chart" class="telemetry-plot"></div>
                 <div class="telemetry-smooth-rail">
                   <input id="telemetry-smooth-slider" class="telemetry-smooth-slider" type="range" min="0" max="5" step="1" value="3" />
                   <div class="telemetry-smooth-label">Smooth <span id="telemetry-smooth-value">7</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="telemetry-chart-card" data-graph-key="yaw">
+              <div class="telemetry-chart-title">Yaw</div>
+              <div class="telemetry-inertial-layout">
+                <div id="telemetry-yaw-chart" class="telemetry-plot"></div>
+                <div class="telemetry-smooth-rail">
+                  <input id="telemetry-yaw-smooth-slider" class="telemetry-smooth-slider" type="range" min="0" max="5" step="1" value="3" />
+                  <div class="telemetry-smooth-label">Smooth <span id="telemetry-yaw-smooth-value">7</span></div>
                 </div>
               </div>
             </div>

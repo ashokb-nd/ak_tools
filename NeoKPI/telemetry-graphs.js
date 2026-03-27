@@ -74,6 +74,26 @@ function parseAccelerometerSeries(sensorMetaData, startEpochMs) {
   return { accY, accZ };
 }
 
+function parseYawSeries(sensorMetaData, startEpochMs) {
+  if (!Array.isArray(sensorMetaData)) return [];
+
+  const yawSeries = [];
+  for (const entry of sensorMetaData) {
+    if (!entry?.gyro) continue;
+    const values = String(entry.gyro).trim().split(/\s+/);
+    if (values.length < 4) continue;
+
+    const yaw = parseFloat(values[0]);
+    const t = parseInt(values[3], 10);
+    if (!Number.isFinite(yaw) || !Number.isFinite(t)) continue;
+
+    const x = (t - startEpochMs) / 1000;
+    yawSeries.push({ x, y: yaw });
+  }
+
+  return yawSeries;
+}
+
 function getPilOffset(metadata) {
   const laneCalParams = metadata?.inference_data?.observations_data?.laneCalibrationParams;
   if (!Array.isArray(laneCalParams) || laneCalParams.length < 4) return 0;
@@ -110,11 +130,21 @@ function extractMinEpochMs(metadata, positionsInLane) {
   const sensorMetaData = metadata?.sensorMetaData;
   if (Array.isArray(sensorMetaData)) {
     for (const entry of sensorMetaData) {
-      if (!entry?.accelerometer) continue;
-      const values = String(entry.accelerometer).trim().split(/\s+/);
-      if (values.length < 4) continue;
-      const t = parseInt(values[3], 10);
-      if (Number.isFinite(t)) candidates.push(t);
+      if (entry?.accelerometer) {
+        const accValues = String(entry.accelerometer).trim().split(/\s+/);
+        if (accValues.length >= 4) {
+          const accT = parseInt(accValues[3], 10);
+          if (Number.isFinite(accT)) candidates.push(accT);
+        }
+      }
+
+      if (entry?.gyro) {
+        const gyroValues = String(entry.gyro).trim().split(/\s+/);
+        if (gyroValues.length >= 4) {
+          const gyroT = parseInt(gyroValues[3], 10);
+          if (Number.isFinite(gyroT)) candidates.push(gyroT);
+        }
+      }
     }
   }
 
@@ -122,7 +152,7 @@ function extractMinEpochMs(metadata, positionsInLane) {
 }
 
 function computeMaxX(model) {
-  const allSeries = [model.laneSeries, model.accY, model.accZ];
+  const allSeries = [model.laneSeries, model.accY, model.accZ, model.yawSeries];
   let maxX = 0;
   for (const series of allSeries) {
     if (!Array.isArray(series) || !series.length) continue;
@@ -152,10 +182,11 @@ function buildTelemetryModel(metadata) {
   const rawInertial = parseAccelerometerSeries(metadata?.sensorMetaData, startEpochMs);
   const accY = downsampleSeries(rawInertial.accY);
   const accZ = downsampleSeries(rawInertial.accZ);
+  const yawSeries = downsampleSeries(parseYawSeries(metadata?.sensorMetaData, startEpochMs));
 
-  if (!laneSeries.length && !accY.length && !accZ.length) return null;
+  if (!laneSeries.length && !accY.length && !accZ.length && !yawSeries.length) return null;
 
-  const model = { laneSeries, accY, accZ };
+  const model = { laneSeries, accY, accZ, yawSeries };
   model.xMax = computeMaxX(model);
   return model;
 }
@@ -254,25 +285,32 @@ function interpolateSeries(series, tSec) {
 export function createTelemetryGraphs({
   laneChartEl,
   inertialChartEl,
+  yawChartEl,
   laneValueEl,
   lateralValueEl,
   drivingValueEl,
+  yawValueEl,
   smoothSliderEl,
   smoothValueEl,
+  yawSmoothSliderEl,
+  yawSmoothValueEl,
 }) {
   let telemetryModel = null;
   let laneChart = null;
   let inertialChart = null;
+  let yawChart = null;
   let lastTelemetryDrawMs = 0;
   let playheadRafId = null;
   let pendingPlayheadTime = 0;
   let smoothedAccYByWindow = null;
   let smoothedAccZByWindow = null;
+  let smoothedYawByWindow = null;
 
-  function setTelemetryValues(lane, accY, accZ) {
+  function setTelemetryValues(lane, accY, accZ, yaw) {
     if (laneValueEl) laneValueEl.textContent = `PIL: ${fmtSigned(lane, 3)}`;
     if (lateralValueEl) lateralValueEl.textContent = `Acc Y: ${fmtSigned(accY, 3)}`;
     if (drivingValueEl) drivingValueEl.textContent = `Acc Z: ${fmtSigned(accZ, 3)}`;
+    if (yawValueEl) yawValueEl.textContent = `Yaw: ${fmtSigned(yaw, 3)}`;
   }
 
   function drawPlayhead(t) {
@@ -284,6 +322,12 @@ export function createTelemetryGraphs({
     }
     if (inertialChart && window.Plotly && inertialChartEl) {
       window.Plotly.relayout(inertialChartEl, {
+        "shapes[0].x0": t,
+        "shapes[0].x1": t,
+      });
+    }
+    if (yawChart && window.Plotly && yawChartEl) {
+      window.Plotly.relayout(yawChartEl, {
         "shapes[0].x0": t,
         "shapes[0].x1": t,
       });
@@ -307,27 +351,36 @@ export function createTelemetryGraphs({
     if (window.Plotly) {
       if (laneChart && laneChartEl) window.Plotly.purge(laneChartEl);
       if (inertialChart && inertialChartEl) window.Plotly.purge(inertialChartEl);
+      if (yawChart && yawChartEl) window.Plotly.purge(yawChartEl);
     }
     laneChart = null;
     inertialChart = null;
+    yawChart = null;
     telemetryModel = null;
     smoothedAccYByWindow = null;
     smoothedAccZByWindow = null;
-    setTelemetryValues(null, null, null);
+    smoothedYawByWindow = null;
+    setTelemetryValues(null, null, null, null);
     if (smoothSliderEl) {
       smoothSliderEl.disabled = true;
       smoothSliderEl.value = String(DEFAULT_SMOOTHING_INDEX);
     }
     if (smoothValueEl) smoothValueEl.textContent = String(SMOOTHING_WINDOWS[DEFAULT_SMOOTHING_INDEX]);
+    if (yawSmoothSliderEl) {
+      yawSmoothSliderEl.disabled = true;
+      yawSmoothSliderEl.value = String(DEFAULT_SMOOTHING_INDEX);
+    }
+    if (yawSmoothValueEl) yawSmoothValueEl.textContent = String(SMOOTHING_WINDOWS[DEFAULT_SMOOTHING_INDEX]);
   }
 
   function initFromMetadata(metadata, initialTimeSec = 0) {
     destroy();
 
     telemetryModel = buildTelemetryModel(metadata);
-    if (!telemetryModel || !window.Plotly || !laneChartEl || !inertialChartEl) return;
+    if (!telemetryModel || !window.Plotly || !laneChartEl || !inertialChartEl || !yawChartEl) return;
 
     const inertialRange = computeRobustYRange([telemetryModel.accY, telemetryModel.accZ], -10, 10);
+    const yawRange = computeRobustYRange([telemetryModel.yawSeries], -3, 3);
 
     const laneTrace = {
       type: "scattergl",
@@ -359,11 +412,24 @@ export function createTelemetryGraphs({
       hovertemplate: "t=%{x:.2f}s<br>AccZ=%{y:.4f}<extra></extra>",
     };
 
+    const yawTrace = {
+      type: "scattergl",
+      mode: "lines",
+      name: "Yaw",
+      x: telemetryModel.yawSeries.map(p => p.x),
+      y: telemetryModel.yawSeries.map(p => p.y),
+      line: { color: "#4da3ff", width: 1.8 },
+      hovertemplate: "t=%{x:.2f}s<br>Yaw=%{y:.4f}<extra></extra>",
+    };
+
     smoothedAccYByWindow = Object.fromEntries(
       SMOOTHING_WINDOWS.map(w => [w, smoothSeriesY(telemetryModel.accY, w)]),
     );
     smoothedAccZByWindow = Object.fromEntries(
       SMOOTHING_WINDOWS.map(w => [w, smoothSeriesY(telemetryModel.accZ, w)]),
+    );
+    smoothedYawByWindow = Object.fromEntries(
+      SMOOTHING_WINDOWS.map(w => [w, smoothSeriesY(telemetryModel.yawSeries, w)]),
     );
 
     const cfg = { displayModeBar: false, responsive: true, staticPlot: false };
@@ -379,9 +445,16 @@ export function createTelemetryGraphs({
       plotLayout("Acceleration", telemetryModel.xMax, inertialRange.min, inertialRange.max),
       cfg,
     );
+    window.Plotly.react(
+      yawChartEl,
+      [yawTrace],
+      plotLayout("Yaw", telemetryModel.xMax, yawRange.min, yawRange.max),
+      cfg,
+    );
 
     laneChart = true;
     inertialChart = true;
+    yawChart = true;
 
     if (smoothSliderEl) {
       smoothSliderEl.max = String(SMOOTHING_WINDOWS.length - 1);
@@ -389,8 +462,15 @@ export function createTelemetryGraphs({
       smoothSliderEl.disabled = false;
     }
     if (smoothValueEl) smoothValueEl.textContent = String(SMOOTHING_WINDOWS[DEFAULT_SMOOTHING_INDEX]);
+    if (yawSmoothSliderEl) {
+      yawSmoothSliderEl.max = String(SMOOTHING_WINDOWS.length - 1);
+      yawSmoothSliderEl.value = String(DEFAULT_SMOOTHING_INDEX);
+      yawSmoothSliderEl.disabled = false;
+    }
+    if (yawSmoothValueEl) yawSmoothValueEl.textContent = String(SMOOTHING_WINDOWS[DEFAULT_SMOOTHING_INDEX]);
 
     applySmoothingByIndex(DEFAULT_SMOOTHING_INDEX);
+    applyYawSmoothingByIndex(DEFAULT_SMOOTHING_INDEX);
 
     updateForTime(initialTimeSec, true);
   }
@@ -409,13 +489,28 @@ export function createTelemetryGraphs({
     );
   }
 
+  function applyYawSmoothingByIndex(index) {
+    if (!yawChart || !window.Plotly || !smoothedYawByWindow || !yawChartEl) return;
+
+    const idx = Math.max(0, Math.min(SMOOTHING_WINDOWS.length - 1, Number(index) || 0));
+    const w = SMOOTHING_WINDOWS[idx];
+    if (yawSmoothValueEl) yawSmoothValueEl.textContent = String(w);
+
+    window.Plotly.restyle(
+      yawChartEl,
+      { y: [smoothedYawByWindow[w]] },
+      [0],
+    );
+  }
+
   function updateForTime(tSec, forceDraw = false) {
     if (!telemetryModel) return;
 
     const lane = interpolateSeries(telemetryModel.laneSeries, tSec);
     const accY = interpolateSeries(telemetryModel.accY, tSec);
     const accZ = interpolateSeries(telemetryModel.accZ, tSec);
-    setTelemetryValues(lane, accY, accZ);
+    const yaw = interpolateSeries(telemetryModel.yawSeries, tSec);
+    setTelemetryValues(lane, accY, accZ, yaw);
 
     const now = performance.now();
     if (!forceDraw && now - lastTelemetryDrawMs < (1000 / TELEMETRY_PLAYHEAD_FPS)) return;
@@ -429,6 +524,7 @@ export function createTelemetryGraphs({
     destroy,
     initFromMetadata,
     applySmoothingByIndex,
+    applyYawSmoothingByIndex,
     updateForTime,
   };
 }

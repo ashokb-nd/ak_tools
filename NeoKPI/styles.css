@@ -306,9 +306,10 @@ body {
 .telemetry-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
 .telemetry-header h3 {
@@ -322,6 +323,34 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.telemetry-layout-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.telemetry-layout-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+#telemetry-layout-reset {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-label);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+#telemetry-layout-reset:hover {
+  border-color: var(--brand);
+  color: var(--text);
 }
 
 .telemetry-pill {
@@ -349,6 +378,24 @@ body {
   background: #171b28;
   padding: 8px 10px;
   min-height: 200px;
+  cursor: grab;
+  user-select: none;
+}
+
+.telemetry-chart-card:active {
+  cursor: grabbing;
+}
+
+.telemetry-chart-card--dragging {
+  opacity: 0.55;
+}
+
+.telemetry-chart-card--drop-before {
+  box-shadow: inset 4px 0 0 var(--brand);
+}
+
+.telemetry-chart-card--drop-after {
+  box-shadow: inset -4px 0 0 var(--brand);
 }
 
 .telemetry-chart-title {

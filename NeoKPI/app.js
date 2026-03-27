@@ -30,6 +30,11 @@ const vcDurationEl = document.querySelector("#vc-duration");
 const vcMuteEl = document.querySelector("#vc-mute");
 
 const telemetrySmoothSliderEl = document.querySelector("#telemetry-smooth-slider");
+const telemetryYawSmoothSliderEl = document.querySelector("#telemetry-yaw-smooth-slider");
+const telemetryGridEl = document.querySelector("#telemetry-grid");
+const telemetryLayoutResetEl = document.querySelector("#telemetry-layout-reset");
+
+const TELEMETRY_LAYOUT_STORAGE_KEY = "neoKpi.telemetryGraphOrder.v1";
 
 // State
 let activeDetail = null;
@@ -47,17 +52,150 @@ let controlsRafId = null;
 const telemetryGraphs = createTelemetryGraphs({
   laneChartEl: document.querySelector("#telemetry-lane-chart"),
   inertialChartEl: document.querySelector("#telemetry-inertial-chart"),
+  yawChartEl: document.querySelector("#telemetry-yaw-chart"),
   laneValueEl: document.querySelector("#telemetry-lane-value"),
   lateralValueEl: document.querySelector("#telemetry-lateral-value"),
   drivingValueEl: document.querySelector("#telemetry-driving-value"),
+  yawValueEl: document.querySelector("#telemetry-yaw-value"),
   smoothSliderEl: telemetrySmoothSliderEl,
   smoothValueEl: document.querySelector("#telemetry-smooth-value"),
+  yawSmoothSliderEl: telemetryYawSmoothSliderEl,
+  yawSmoothValueEl: document.querySelector("#telemetry-yaw-smooth-value"),
 });
 
 function stopControlsLoop() {
   if (controlsRafId !== null) {
     cancelAnimationFrame(controlsRafId);
     controlsRafId = null;
+  }
+}
+
+function getTelemetryCards() {
+  if (!telemetryGridEl) return [];
+  return Array.from(telemetryGridEl.querySelectorAll(".telemetry-chart-card[data-graph-key]"));
+}
+
+function readTelemetryLayoutOrder() {
+  try {
+    const raw = window.localStorage.getItem(TELEMETRY_LAYOUT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.every(x => typeof x === "string")) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeTelemetryLayoutOrder(order) {
+  try {
+    window.localStorage.setItem(TELEMETRY_LAYOUT_STORAGE_KEY, JSON.stringify(order));
+  } catch {
+    // Ignore storage failures; drag-and-drop still works for this session.
+  }
+}
+
+function saveTelemetryLayoutFromDom() {
+  const order = getTelemetryCards().map(card => card.dataset.graphKey).filter(Boolean);
+  writeTelemetryLayoutOrder(order);
+}
+
+function applyTelemetryLayoutOrder(order) {
+  const cards = getTelemetryCards();
+  if (!cards.length || !Array.isArray(order) || !order.length) return;
+
+  const cardByKey = new Map(cards.map(card => [card.dataset.graphKey, card]));
+  const seen = new Set();
+  const fragment = document.createDocumentFragment();
+
+  for (const key of order) {
+    const card = cardByKey.get(key);
+    if (!card || seen.has(key)) continue;
+    seen.add(key);
+    fragment.appendChild(card);
+  }
+
+  for (const card of cards) {
+    const key = card.dataset.graphKey;
+    if (!key || seen.has(key)) continue;
+    fragment.appendChild(card);
+  }
+
+  telemetryGridEl.appendChild(fragment);
+}
+
+function clearTelemetryDropHints() {
+  for (const card of getTelemetryCards()) {
+    card.classList.remove("telemetry-chart-card--drop-before", "telemetry-chart-card--drop-after");
+  }
+}
+
+function triggerTelemetryRelayout() {
+  requestAnimationFrame(() => {
+    window.dispatchEvent(new Event("resize"));
+  });
+}
+
+function initTelemetryLayoutControls() {
+  const cards = getTelemetryCards();
+  if (!cards.length) return;
+
+  const defaultOrder = cards.map(card => card.dataset.graphKey).filter(Boolean);
+  const storedOrder = readTelemetryLayoutOrder();
+  if (storedOrder?.length) applyTelemetryLayoutOrder(storedOrder);
+
+  let draggedCard = null;
+
+  for (const card of getTelemetryCards()) {
+    card.draggable = true;
+
+    card.addEventListener("dragstart", () => {
+      draggedCard = card;
+      card.classList.add("telemetry-chart-card--dragging");
+    });
+
+    card.addEventListener("dragend", () => {
+      card.classList.remove("telemetry-chart-card--dragging");
+      clearTelemetryDropHints();
+      draggedCard = null;
+    });
+
+    card.addEventListener("dragover", e => {
+      if (!draggedCard || draggedCard === card) return;
+      e.preventDefault();
+
+      clearTelemetryDropHints();
+      const rect = card.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      card.classList.add(before ? "telemetry-chart-card--drop-before" : "telemetry-chart-card--drop-after");
+    });
+
+    card.addEventListener("drop", e => {
+      if (!draggedCard || draggedCard === card) return;
+      e.preventDefault();
+
+      const rect = card.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      if (before) telemetryGridEl.insertBefore(draggedCard, card);
+      else telemetryGridEl.insertBefore(draggedCard, card.nextSibling);
+
+      clearTelemetryDropHints();
+      saveTelemetryLayoutFromDom();
+      triggerTelemetryRelayout();
+    });
+  }
+
+  telemetryGridEl.addEventListener("dragleave", e => {
+    if (e.target === telemetryGridEl) clearTelemetryDropHints();
+  });
+
+  if (telemetryLayoutResetEl) {
+    telemetryLayoutResetEl.addEventListener("click", () => {
+      applyTelemetryLayoutOrder(defaultOrder);
+      writeTelemetryLayoutOrder(defaultOrder);
+      clearTelemetryDropHints();
+      triggerTelemetryRelayout();
+    });
   }
 }
 
@@ -488,6 +626,7 @@ async function applyDataDir() {
 
 async function init() {
   initStages();
+  initTelemetryLayoutControls();
   wireVideoSync();
   wireKeyboardShortcuts();
 
@@ -537,6 +676,12 @@ annotationsToggleEl.addEventListener("change", () => {
 if (telemetrySmoothSliderEl) {
   telemetrySmoothSliderEl.addEventListener("input", e => {
     telemetryGraphs.applySmoothingByIndex(e.target.value);
+  });
+}
+
+if (telemetryYawSmoothSliderEl) {
+  telemetryYawSmoothSliderEl.addEventListener("input", e => {
+    telemetryGraphs.applyYawSmoothingByIndex(e.target.value);
   });
 }
 
