@@ -223,7 +223,7 @@ function computeRobustYRange(seriesList, fallbackMin, fallbackMax) {
   return { min, max };
 }
 
-function plotLayout(yLabel, xMax = 1, yMin = undefined, yMax = undefined) {
+function plotLayout(yLabel, xMax = 1, yMin = undefined, yMax = undefined, extraShapes = []) {
   return {
     paper_bgcolor: "#171b28",
     plot_bgcolor: "#171b28",
@@ -257,7 +257,7 @@ function plotLayout(yLabel, xMax = 1, yMin = undefined, yMax = undefined) {
       y1: 1,
       yref: "paper",
       line: { color: "#f39c12", width: 1 },
-    }],
+    }, ...extraShapes],
   };
 }
 
@@ -388,7 +388,7 @@ export function createTelemetryGraphs({
       name: "PIL Corrected",
       x: telemetryModel.laneSeries.map(p => p.x),
       y: telemetryModel.laneSeries.map(p => p.y),
-      line: { color: "#d59a7c", width: 2 },
+      line: { color: "#ffd166", width: 2 },
       hovertemplate: "t=%{x:.2f}s<br>PIL=%{y:.4f}<extra></extra>",
     };
 
@@ -436,7 +436,24 @@ export function createTelemetryGraphs({
     window.Plotly.react(
       laneChartEl,
       [laneTrace],
-      plotLayout("Lane Offset", telemetryModel.xMax, -0.5, 0.5),
+      plotLayout("Lane Offset", telemetryModel.xMax, -0.5, 0.5, [
+        {
+          type: "line",
+          x0: 0,
+          x1: telemetryModel.xMax,
+          y0: 0.2,
+          y1: 0.2,
+          line: { color: "rgba(255, 209, 102, 0.75)", width: 1.2, dash: "dot" },
+        },
+        {
+          type: "line",
+          x0: 0,
+          x1: telemetryModel.xMax,
+          y0: -0.2,
+          y1: -0.2,
+          line: { color: "rgba(255, 209, 102, 0.75)", width: 1.2, dash: "dot" },
+        },
+      ]),
       cfg,
     );
     window.Plotly.react(
