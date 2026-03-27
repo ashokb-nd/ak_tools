@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import click
 import logging
-import os
 import os.path as osp
 import shutil
-import subprocess
 import sys
 
 from .analytics_log_parser import clean_log_in_folder
@@ -21,6 +19,7 @@ from .config_manager import ConfigManager
 from .model_fetcher import fetch_all_models
 from ak_tools.change_configs import copy_section_to_other_configs
 from .s3_presigner import main as s3_presigner_main
+from .neo_server import start_neo_server
 from .sync_alert import download_alerts, LOCAL_STORAGE_DIR, s3_sync_path, sync_folder_to_s3
 
 CONFIG_MANAGER = ConfigManager()
@@ -278,34 +277,25 @@ def neo_sync_s3_cmd() -> None:
         raise click.ClickException(str(exc)) from exc
 
 
-@neo_group.command("start", help="Start NeoKPI server from the repository NeoKPI folder.")
+@neo_group.command("start", help="Start NeoKPI server using Python (no Node required).")
+@click.option("--host", default="localhost", show_default=True, help="Host to bind NeoKPI server.")
 @click.option("--port", type=int, default=8090, show_default=True, help="Port for NeoKPI server.")
 @click.option("--data-dir", default=LOCAL_STORAGE_DIR, show_default=True, help="Alert data directory for NeoKPI.")
-def neo_start_cmd(port: int, data_dir: str) -> None:
-    """Start the NeoKPI Node server with configured data directory."""
+def neo_start_cmd(host: str, port: int, data_dir: str) -> None:
+    """Start the NeoKPI Python server with configured data directory."""
     try:
         app_dir = NEOKPI_APP_DIR
-        server_js = osp.join(app_dir, 'server.js')
         resolved_data_dir = osp.expanduser(data_dir)
 
         if not osp.isdir(app_dir):
             raise click.ClickException(f'NeoKPI directory not found: {app_dir}')
-        if not osp.isfile(server_js):
-            raise click.ClickException(f'NeoKPI server entry not found: {server_js}')
 
-        env = os.environ.copy()
-        env['ALERT_DATA_DIR'] = resolved_data_dir
-        env['PORT'] = str(port)
-
-        click.echo(f'Starting NeoKPI from {app_dir}')
+        click.echo(f'Starting NeoKPI (Python) from {app_dir}')
+        click.echo(f'HOST={host}')
         click.echo(f'ALERT_DATA_DIR={resolved_data_dir}')
         click.echo(f'PORT={port}')
 
-        subprocess.run(['node', 'server.js'], cwd=app_dir, env=env, check=True)
-    except FileNotFoundError as exc:
-        raise click.ClickException('node is not installed or not found in PATH') from exc
-    except subprocess.CalledProcessError as exc:
-        raise click.ClickException(f'NeoKPI server exited with code {exc.returncode}') from exc
+        start_neo_server(host=host, port=port, data_dir=resolved_data_dir, app_dir=app_dir)
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 
