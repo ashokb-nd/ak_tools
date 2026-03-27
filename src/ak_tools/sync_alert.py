@@ -122,7 +122,7 @@ def query_api(input_data, env='production'):
     return json.loads(response.text)
 
 
-def download_data(bucket, prefix, down_dir, downscale=False):
+def download_data(bucket, prefix, down_dir, downscale=False, local_subdir=None):
     """Download data from S3.
 
     Args:
@@ -130,11 +130,16 @@ def download_data(bucket, prefix, down_dir, downscale=False):
         prefix (str): prefix to download
         down_dir (str): path to directory for download
         downscale (bool): whether to downscale downloaded mp4 videos
+        local_subdir (str|None): optional local subfolder under down_dir
     """
-    logger.info('Syncing data from %s/%s to %s', bucket, prefix, down_dir)
+    target_subdir = str(local_subdir) if local_subdir is not None else str(prefix)
+    target_subdir = target_subdir.strip(osp.sep)
+    target_dir = osp.join(down_dir, target_subdir) if target_subdir else down_dir
+
+    logger.info('Syncing data from %s/%s to %s', bucket, prefix, target_dir)
     prefix = str(prefix).rstrip(osp.sep)
-    if not osp.exists(osp.join(down_dir, prefix)):
-        os.makedirs(osp.join(down_dir, prefix))
+    if not osp.exists(target_dir):
+        os.makedirs(target_dir)
     s3_resource = boto3.resource('s3')
     bucket_obj = s3_resource.Bucket(bucket)
     objects = (
@@ -146,9 +151,9 @@ def download_data(bucket, prefix, down_dir, downscale=False):
         tokens = obj.key.replace(prefix + '/', '').split('/')
         filename = tokens[-1]
         logger.info('Downloading %s', obj.key)
-        if not osp.exists(osp.join(down_dir, prefix)):
-            os.makedirs(osp.join(down_dir, prefix))
-        file_path = osp.join(down_dir, prefix, filename)
+        if not osp.exists(target_dir):
+            os.makedirs(target_dir)
+        file_path = osp.join(target_dir, filename)
         bucket_obj.download_file(obj.key, file_path)
         
         # Downscale video files to 480p at 20fps when explicitly requested
@@ -180,14 +185,22 @@ def download_alert(alert_id, download_dir, env='production', input_type='alert_i
         s3_path_list = [s3_path_list]
     
     video_folders = []
-    for s3_path in s3_path_list:
+    multiple_sources = len(s3_path_list) > 1
+    for idx, s3_path in enumerate(s3_path_list):
         s3_tokens = s3_path.split('/')
         parent_s3_bucket = s3_tokens[0]
         s3_prefix = '/'.join(s3_tokens[1:])
-        down_dir = osp.join(download_dir, parent_s3_bucket)
+        down_dir = osp.join(download_dir, str(alert_id))
+        local_subdir = f'source_{idx + 1}' if multiple_sources else ''
         
-        download_data(parent_s3_bucket, s3_prefix, down_dir=down_dir, downscale=downscale)
-        video_dir = osp.join(down_dir, s3_prefix)
+        download_data(
+            parent_s3_bucket,
+            s3_prefix,
+            down_dir=down_dir,
+            downscale=downscale,
+            local_subdir=local_subdir,
+        )
+        video_dir = osp.join(down_dir, local_subdir) if local_subdir else down_dir
 
         video_folders.append(video_dir)
     
