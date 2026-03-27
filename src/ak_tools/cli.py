@@ -8,6 +8,9 @@ click - group, command, option, argument, echo, ClickException
 from __future__ import annotations
 
 import click
+import logging
+import os.path as osp
+import shutil
 import sys
 
 from .analytics_log_parser import clean_log_in_folder
@@ -16,6 +19,7 @@ from .config_manager import ConfigManager
 from .model_fetcher import fetch_all_models
 from ak_tools.change_configs import copy_section_to_other_configs
 from .s3_presigner import main as s3_presigner_main
+from .sync_alert import download_alerts, LOCAL_STORAGE_DIR
 
 CONFIG_MANAGER = ConfigManager()
 FETCH_SECTION = "fetch_all_models"
@@ -159,12 +163,18 @@ def copy_cmd(alias: str | None) -> None:
         raise click.ClickException(str(exc)) from exc
 
 
-@cli.command("neo", help="Start the neokpi S3 file content server with local storage support.")
+@cli.group("neo", help="Neokpi workflows and server commands.")
+def neo_group() -> None:
+    """Commands under ak neo."""
+    return None
+
+
+@neo_group.command("s3_presigner", help="Start the neokpi S3 file content server with local storage support.")
 @click.option("--port", type=int, default=8080, show_default=True, help="Port to run the server on.")
 @click.option("--host", default="localhost", show_default=True, help="Host to bind to.")
 @click.option("--offline", is_flag=True, help="Run in offline mode (local storage only, no AWS).")
 @click.option("--outdir", default=None, help="Output directory for metadata storage (optional, for custom lookups).")
-def neo_cmd(port: int, host: str, offline: bool, outdir: str | None) -> None:
+def neo_s3_presigner_cmd(port: int, host: str, offline: bool, outdir: str | None) -> None:
     """Start the neokpi S3 file content downloader server."""
     try:
         # Convert Click arguments to argparse-like format for the original main function
@@ -174,6 +184,69 @@ def neo_cmd(port: int, host: str, offline: bool, outdir: str | None) -> None:
         if offline:
             sys.argv.append("--offline")
         s3_presigner_main()
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@neo_group.command("add", help="Read alert ids/avids from a file (one per line) and download them.")
+@click.argument("filepath", type=click.Path(exists=True, dir_okay=False, path_type=str))
+@click.option("--alert_type", default=None, help="Optional input type override: alert_id, avid, or aaid.")
+@click.option("--env", default="production", show_default=True, help="Environment for AVC API lookup.")
+@click.option("--downscale/--no-downscale", default=False, show_default=True, help="Downscale mp4 files after download.")
+def neo_add_cmd(filepath: str, alert_type: str | None, env: str, downscale: bool) -> None:
+    """Download alerts listed in a file using sync_alert.download_alerts."""
+    try:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)-07s - %(name)-025s - %(message)s',
+            stream=sys.stdout,
+            force=True,
+        )
+
+        click.echo('Reminder: export AWS credentials before running this command if needed.')
+        click.echo('Example: export AWS_ACCESS_KEY_ID="..."')
+        click.echo('         export AWS_SECRET_ACCESS_KEY="..."')
+        click.echo('         export AWS_SESSION_TOKEN="..."')
+
+        with open(filepath, 'r', encoding='utf-8') as handle:
+            alert_list = [
+                line.strip() for line in handle
+                if line.strip() and not line.strip().startswith('#')
+            ]
+
+        if not alert_list:
+            raise click.ClickException(f'No alert IDs found in file: {filepath}')
+
+        click.echo(f'Found {len(alert_list)} entries in {filepath}')
+        download_alerts(
+            alert_list,
+            alert_type=alert_type,
+            env=env,
+            downscale=downscale,
+        )
+        click.echo('Done.')
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@neo_group.command("clean", help="Clear the local neokpi download storage.")
+def neo_clean_cmd() -> None:
+    """Clear LOCAL_STORAGE_DIR after confirmation."""
+    try:
+        if not osp.exists(LOCAL_STORAGE_DIR):
+            click.echo(f'Nothing to clean. Directory does not exist: {LOCAL_STORAGE_DIR}')
+            return
+
+        confirmed = click.confirm(
+            f'This will permanently delete: {LOCAL_STORAGE_DIR}. Continue?',
+            default=False,
+        )
+        if not confirmed:
+            click.echo('Cancelled.')
+            return
+
+        shutil.rmtree(LOCAL_STORAGE_DIR)
+        click.echo(f'Cleared: {LOCAL_STORAGE_DIR}')
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 

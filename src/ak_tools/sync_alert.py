@@ -280,9 +280,17 @@ def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None,
         downscale (bool): whether to downscale downloaded mp4 videos
         sync_s3_uri (str|None): optional destination S3 URI for final sync
     """
+    logger.info(
+        'Starting download_alerts: total=%d, download_dir=%s, env=%s, downscale=%s',
+        len(alert_list),
+        download_dir,
+        env,
+        downscale,
+    )
     all_video_folders = []
     for alert_id in alert_list:
         resolved_alert_type = alert_type if alert_type is not None else infer_alert_type(alert_id)
+        logger.info('Processing %s as %s', alert_id, resolved_alert_type)
         try:
             downloaded_folders = download_alert(
                 alert_id,
@@ -302,6 +310,8 @@ def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None,
             folder_name = osp.basename(osp.normpath(folder))
             target_uri = sync_s3_uri.rstrip('/') + f'/{folder_name}/'
             sync_folder_to_s3(folder, target_uri)
+
+    logger.info('Completed download_alerts: downloaded_folders=%d', len(all_video_folders))
 
 
 if __name__ == '__main__':
