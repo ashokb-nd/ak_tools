@@ -13,9 +13,11 @@ authors = [
 ]
 dependencies = [
   "click>=8.1",
+  "boto3",
   "numpy",
   "pandas",
-  "opencv-python"
+  "opencv-python",
+  "requests",
 ]
 
 [project.scripts]
