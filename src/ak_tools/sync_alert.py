@@ -75,14 +75,26 @@ def sync_folder_to_s3(local_dir, destination_s3_uri):
     logger.info('S3 sync complete: uploaded %d files to %s', uploaded_count, destination_s3_uri)
 
 
-def downscale_video(video_path, output_path, resolution='480', fps=20):
-    """Downscale video to specified resolution and fps using ffmpeg.
+def get_compression_settings(level):
+    """Return ffmpeg settings for supported compression levels."""
+    levels = {
+        1: {'resolution': '480', 'fps': 20, 'preset': 'veryfast', 'crf': '28'},
+        2: {'resolution': '360', 'fps': 15, 'preset': 'slow', 'crf': '32'},
+        3: {'resolution': '240', 'fps': 12, 'preset': 'veryslow', 'crf': '34'},
+    }
+    if level not in levels:
+        logger.warning('Unsupported compression level %s, defaulting to 1', level)
+        return levels[1]
+    return levels[level]
+
+
+def downscale_video(video_path, output_path, compression_level=1):
+    """Downscale video using ffmpeg settings from a compression profile.
     
     Args:
         video_path (str): path to input video
         output_path (str): path to output video
-        resolution (str): target height in pixels (480, 720, etc.)
-        fps (int): target frames per second
+        compression_level (int): profile level (1=current, 2=smaller, 3=smallest)
     """
     if not os.path.exists(video_path):
         logger.warning('Video file not found: %s', video_path)
@@ -95,14 +107,28 @@ def downscale_video(video_path, output_path, resolution='480', fps=20):
             logger.warning('ffmpeg not available, skipping downscaling')
             return False
             
+        settings = get_compression_settings(compression_level)
+        resolution = settings['resolution']
+        fps = settings['fps']
+        preset = settings['preset']
+        crf = settings['crf']
+
         cmd = [
             'ffmpeg', '-i', video_path,
             '-vf', f'scale=-2:{resolution}:flags=fast_bilinear,fps={fps}',
-            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '28',
+            '-c:v', 'libx264', '-preset', preset, '-crf', crf,
             '-c:a', 'copy',
             '-y', output_path
         ]
-        logger.info('Downscaling %s to %sp@%sfps', video_path, resolution, fps)
+        logger.info(
+            'Downscaling %s using compression level %s (%sp@%sfps, preset=%s, crf=%s)',
+            video_path,
+            compression_level,
+            resolution,
+            fps,
+            preset,
+            crf,
+        )
         result = subprocess.run(cmd, capture_output=True, timeout=600)
         
         if result.returncode != 0:
@@ -183,7 +209,7 @@ def query_api(input_data, env='production'):
     return json.loads(response.text)
 
 
-def download_data(bucket, prefix, down_dir, downscale=False, local_subdir=None):
+def download_data(bucket, prefix, down_dir, downscale=False, local_subdir=None, compression_level=1):
     """Download data from S3.
 
     Args:
@@ -192,6 +218,7 @@ def download_data(bucket, prefix, down_dir, downscale=False, local_subdir=None):
         down_dir (str): path to directory for download
         downscale (bool): whether to downscale downloaded mp4 videos
         local_subdir (str|None): optional local subfolder under down_dir
+        compression_level (int): compression profile level (1, 2, or 3)
     """
     target_subdir = str(local_subdir) if local_subdir is not None else str(prefix)
     target_subdir = target_subdir.strip(osp.sep)
@@ -217,11 +244,11 @@ def download_data(bucket, prefix, down_dir, downscale=False, local_subdir=None):
         file_path = osp.join(target_dir, filename)
         bucket_obj.download_file(obj.key, file_path)
         
-        # Downscale video files to 480p at 20fps when explicitly requested
+        # Downscale video files when explicitly requested.
         if downscale and filename.endswith('.mp4'):
-            downscale_video(file_path, file_path + '.tmp.mp4')
+            downscale_video(file_path, file_path + '.tmp.mp4', compression_level=compression_level)
 
-def download_alert(alert_id, download_dir, env='production', input_type='alert_id', downscale=False):
+def download_alert(alert_id, download_dir, env='production', input_type='alert_id', downscale=False, compression_level=1):
     """Download alert data from S3.
 
     Args:
@@ -230,6 +257,7 @@ def download_alert(alert_id, download_dir, env='production', input_type='alert_i
         env (str): 'production' or 'staging'
         input_type (str): type of input - 'alert_id', 'avid', 'aaid'
         downscale (bool): whether to downscale downloaded mp4 videos
+        compression_level (int): compression profile level (1, 2, or 3)
 
     Returns:
         list: list of downloaded video folders
@@ -260,6 +288,7 @@ def download_alert(alert_id, download_dir, env='production', input_type='alert_i
             down_dir=down_dir,
             downscale=downscale,
             local_subdir=local_subdir,
+            compression_level=compression_level,
         )
         video_dir = osp.join(down_dir, local_subdir) if local_subdir else down_dir
 
@@ -269,7 +298,7 @@ def download_alert(alert_id, download_dir, env='production', input_type='alert_i
     return video_folders
 
 
-def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None, env='production', downscale=False, sync_s3_uri=None):
+def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None, env='production', downscale=False, sync_s3_uri=None, compression_level=1):
     """Download multiple alerts.
 
     Args:
@@ -279,6 +308,7 @@ def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None,
         env (str): 'production' or 'staging'
         downscale (bool): whether to downscale downloaded mp4 videos
         sync_s3_uri (str|None): optional destination S3 URI for final sync
+        compression_level (int): compression profile level (1, 2, or 3)
     """
     logger.info(
         'Starting download_alerts: total=%d, download_dir=%s, env=%s, downscale=%s',
@@ -298,6 +328,7 @@ def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None,
                 env=env,
                 input_type=resolved_alert_type,
                 downscale=downscale,
+                compression_level=compression_level,
             )
             all_video_folders.extend(downloaded_folders)
         except Exception as e:

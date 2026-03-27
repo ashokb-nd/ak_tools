@@ -196,8 +196,22 @@ def neo_s3_presigner_cmd(port: int, host: str, offline: bool, outdir: str | None
 @click.option("--alert_type", default=None, help="Optional input type override: alert_id, avid, or aaid.")
 @click.option("--env", default="production", show_default=True, help="Environment for AVC API lookup.")
 @click.option("--downscale/--no-downscale", default=True, show_default=True, help="Downscale mp4 files after download.")
+@click.option(
+    "--compression-level",
+    type=click.IntRange(1, 3),
+    default=1,
+    show_default=True,
+    help="Compression profile level for downscaled mp4 files: 1 (current), 2 (smaller), 3 (smallest).",
+)
 @click.option("--sync-s3", is_flag=True, help="Sync downloaded data to configured S3 path.")
-def neo_add_cmd(filepath: str, alert_type: str | None, env: str, downscale: bool, sync_s3: bool) -> None:
+def neo_add_cmd(
+    filepath: str,
+    alert_type: str | None,
+    env: str,
+    downscale: bool,
+    compression_level: int,
+    sync_s3: bool,
+) -> None:
     """Download alerts listed in a file using sync_alert.download_alerts."""
     try:
         logging.basicConfig(
@@ -227,6 +241,7 @@ def neo_add_cmd(filepath: str, alert_type: str | None, env: str, downscale: bool
             alert_type=alert_type,
             env=env,
             downscale=downscale,
+            compression_level=compression_level,
             sync_s3_uri=s3_sync_path if sync_s3 else None,
         )
         click.echo('Done.')
