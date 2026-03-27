@@ -1,0 +1,12 @@
+/node_modules/
+/dist/
+/coverage/
+.vscode/
+.idea/
+.DS_Store
+.env
+.ipynb_checkpoints/
+
+# Generated documentation (use CI/CD to deploy)
+/docs/generated/
+/docs/internal/

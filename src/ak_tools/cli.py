@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import click
 import logging
+import os
 import os.path as osp
 import shutil
+import subprocess
 import sys
 
 from .analytics_log_parser import clean_log_in_folder
@@ -28,6 +30,8 @@ FETCH_DEFAULTS: dict[str, str | bool] = {
     "local_path": "/data4/ashok/REPROCESSING/autocam",
     "save_logfile": False,
 }
+REPO_ROOT = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
+NEOKPI_APP_DIR = osp.join(REPO_ROOT, 'NeoKPI')
 
 
 @click.group(help="My personal work toolbox.")
@@ -270,6 +274,38 @@ def neo_sync_s3_cmd() -> None:
         click.echo(f'Syncing {LOCAL_STORAGE_DIR} -> {s3_sync_path}')
         sync_folder_to_s3(LOCAL_STORAGE_DIR, s3_sync_path)
         click.echo('Done.')
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@neo_group.command("start", help="Start NeoKPI server from the repository NeoKPI folder.")
+@click.option("--port", type=int, default=8090, show_default=True, help="Port for NeoKPI server.")
+@click.option("--data-dir", default=LOCAL_STORAGE_DIR, show_default=True, help="Alert data directory for NeoKPI.")
+def neo_start_cmd(port: int, data_dir: str) -> None:
+    """Start the NeoKPI Node server with configured data directory."""
+    try:
+        app_dir = NEOKPI_APP_DIR
+        server_js = osp.join(app_dir, 'server.js')
+        resolved_data_dir = osp.expanduser(data_dir)
+
+        if not osp.isdir(app_dir):
+            raise click.ClickException(f'NeoKPI directory not found: {app_dir}')
+        if not osp.isfile(server_js):
+            raise click.ClickException(f'NeoKPI server entry not found: {server_js}')
+
+        env = os.environ.copy()
+        env['ALERT_DATA_DIR'] = resolved_data_dir
+        env['PORT'] = str(port)
+
+        click.echo(f'Starting NeoKPI from {app_dir}')
+        click.echo(f'ALERT_DATA_DIR={resolved_data_dir}')
+        click.echo(f'PORT={port}')
+
+        subprocess.run(['node', 'server.js'], cwd=app_dir, env=env, check=True)
+    except FileNotFoundError as exc:
+        raise click.ClickException('node is not installed or not found in PATH') from exc
+    except subprocess.CalledProcessError as exc:
+        raise click.ClickException(f'NeoKPI server exited with code {exc.returncode}') from exc
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 
