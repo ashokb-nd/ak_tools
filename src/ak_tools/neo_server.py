@@ -113,6 +113,12 @@ def make_handler(config: NeoServerConfig):
             self.wfile.write(data)
 
         def _serve_video(self, file_path: str) -> None:
+            try:
+                self._serve_video_inner(file_path)
+            except (ConnectionResetError, BrokenPipeError):
+                pass  # client cancelled (seek / tab close)
+
+        def _serve_video_inner(self, file_path: str) -> None:
             total_size = osp.getsize(file_path)
             range_header = self.headers.get("Range")
             if not range_header:
