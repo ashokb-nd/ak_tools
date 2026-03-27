@@ -256,7 +256,7 @@ def neo_clean_cmd() -> None:
         raise click.ClickException(str(exc)) from exc
 
 
-@neo_group.command("pull-s3", help="Download folders from S3 to local storage.")
+@neo_group.command("s3-pull", help="Download folders from S3 to local storage.")
 @click.option("--s3-uri", default=s3_sync_path, show_default=True, help="Source S3 URI to pull from.")
 @click.option("--ids-file", default=None, type=click.Path(exists=True, dir_okay=False), help="Optional file with alert IDs/avids (one per line) to download selectively.")
 def neo_pull_s3_cmd(s3_uri: str, ids_file: str | None) -> None:
@@ -282,7 +282,7 @@ def neo_pull_s3_cmd(s3_uri: str, ids_file: str | None) -> None:
         raise click.ClickException(str(exc)) from exc
 
 
-@neo_group.command("clean-s3", help="Delete all objects under the configured S3 sync path.")
+@neo_group.command("s3-clean", help="Delete all objects under the configured S3 sync path.")
 @click.option("--s3-uri", default=s3_sync_path, show_default=True, help="S3 URI to clear.")
 def neo_clean_s3_cmd(s3_uri: str) -> None:
     """Remove all objects under s3_uri."""
@@ -305,7 +305,7 @@ def neo_clean_s3_cmd(s3_uri: str) -> None:
         raise click.ClickException(str(exc)) from exc
 
 
-@neo_group.command("sync-s3", help="Sync LOCAL_STORAGE_DIR to configured S3 path.")
+@neo_group.command("s3-push", help="Sync LOCAL_STORAGE_DIR to configured S3 path.")
 def neo_sync_s3_cmd() -> None:
     """Upload local neokpi storage to s3_sync_path."""
     try:
