@@ -9,9 +9,50 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 AVC_API_ENDPOINT = 'https://analytics-kpis.netradyne.info/avc_api'
-
+s3_sync_path = 's3://netradyne-sharing/analytics/ashok/alert_debug/'
 
 logger = logging.getLogger(__name__)
+
+
+def parse_s3_uri(s3_uri):
+    """Parse s3://bucket/prefix URI into bucket and prefix."""
+    s3_uri = str(s3_uri).strip()
+    if not s3_uri.startswith('s3://'):
+        raise ValueError(f'Invalid S3 URI: {s3_uri}')
+
+    no_scheme = s3_uri[len('s3://'):]
+    if '/' in no_scheme:
+        bucket, prefix = no_scheme.split('/', 1)
+    else:
+        bucket, prefix = no_scheme, ''
+
+    bucket = bucket.strip()
+    prefix = prefix.strip('/')
+    if not bucket:
+        raise ValueError(f'Invalid S3 URI (missing bucket): {s3_uri}')
+    return bucket, prefix
+
+
+def sync_folder_to_s3(local_dir, destination_s3_uri):
+    """Upload all files from local_dir to destination_s3_uri recursively."""
+    if not osp.isdir(local_dir):
+        logger.warning('Local sync directory does not exist: %s', local_dir)
+        return
+
+    bucket, prefix = parse_s3_uri(destination_s3_uri)
+    s3_client = boto3.client('s3')
+    uploaded_count = 0
+
+    for root, _, files in os.walk(local_dir):
+        for filename in files:
+            local_path = osp.join(root, filename)
+            relative_path = osp.relpath(local_path, local_dir).replace(os.sep, '/')
+            s3_key = f'{prefix}/{relative_path}' if prefix else relative_path
+            logger.info('Uploading %s to s3://%s/%s', local_path, bucket, s3_key)
+            s3_client.upload_file(local_path, bucket, s3_key)
+            uploaded_count += 1
+
+    logger.info('S3 sync complete: uploaded %d files to %s', uploaded_count, destination_s3_uri)
 
 
 def downscale_video(video_path, output_path, resolution='480', fps=20):
@@ -208,7 +249,7 @@ def download_alert(alert_id, download_dir, env='production', input_type='alert_i
     return video_folders
 
 
-def download_alerts(alert_list, download_dir, alert_type='alert_id', env='production', downscale=False):
+def download_alerts(alert_list, download_dir, alert_type='alert_id', env='production', downscale=False, sync_s3_uri=None):
     """Download multiple alerts.
 
     Args:
@@ -217,19 +258,29 @@ def download_alerts(alert_list, download_dir, alert_type='alert_id', env='produc
         alert_type (str): 'alert_id', 'avid', or 'aaid'
         env (str): 'production' or 'staging'
         downscale (bool): whether to downscale downloaded mp4 videos
+        sync_s3_uri (str|None): optional destination S3 URI for final sync
     """
+    all_video_folders = []
     for alert_id in alert_list:
         try:
-            download_alert(
+            downloaded_folders = download_alert(
                 alert_id,
                 download_dir,
                 env=env,
                 input_type=alert_type,
                 downscale=downscale,
             )
+            all_video_folders.extend(downloaded_folders)
         except Exception as e:
             logger.error('Failed to download %s: %s', alert_id, str(e))
             continue
+
+    if sync_s3_uri:
+        logger.info('Starting final sync to %s', sync_s3_uri)
+        for folder in all_video_folders:
+            folder_name = osp.basename(osp.normpath(folder))
+            target_uri = sync_s3_uri.rstrip('/') + f'/{folder_name}/'
+            sync_folder_to_s3(folder, target_uri)
 
 
 if __name__ == '__main__':
@@ -241,4 +292,4 @@ if __name__ == '__main__':
     # download_alerts(alerts, '/path/to/download', alert_type='alert_id')
 
     avids = ['a90c7bc4-8ea0-4a0b-8e48-b7835c02c0f8','4047fa8b-b0d7-4ac6-b248-f7cf6b5894b1']
-    download_alerts(avids, './temp/', alert_type='avid', downscale=True)
+    download_alerts(avids, './temp/', alert_type='avid', downscale=True, sync_s3_uri=s3_sync_path)
