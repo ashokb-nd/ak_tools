@@ -2,7 +2,19 @@ const TELEMETRY_MAX_POINTS = 1200;
 const TELEMETRY_PLAYHEAD_FPS = 24;
 const SMOOTHING_WINDOWS = [1, 3, 5, 7, 9, 11];
 const DEFAULT_SMOOTHING_INDEX = Math.max(0, SMOOTHING_WINDOWS.indexOf(7));
-const DSF_EVENT_CODE = "900.0.1.0";
+
+const ALERT_EVENT_CONFIG = {
+  "900.0.1.0": {
+    name: "DSF",
+    markerColor: "rgba(100, 200, 255, 0.95)",
+    fillColor: "rgba(100, 200, 255, 0.14)",
+  },
+  "900.0.0.1": {
+    name: "EEC_1S",
+    markerColor: "rgba(255, 100, 100, 0.95)",
+    fillColor: "rgba(255, 100, 100, 0.14)",
+  },
+};
 
 function fmtSigned(value, digits = 3) {
   if (!Number.isFinite(value)) return "--";
@@ -163,13 +175,13 @@ function computeMaxX(model) {
   return Math.max(1, Math.round(maxX));
 }
 
-function extractDsfAlertSpansSec(metadata) {
+function extractAlertSpansByCode(metadata, eventCode) {
   const events = metadata?.inference_data?.events_data?.alerts;
   if (!Array.isArray(events)) return [];
 
   const spans = [];
   for (const event of events) {
-    if (String(event?.event_code) !== DSF_EVENT_CODE) continue;
+    if (String(event?.event_code) !== eventCode) continue;
 
     const startOffsetMs = Number(event?.start_timestamp);
     const endOffsetMs = Number(event?.end_timestamp);
@@ -185,6 +197,50 @@ function extractDsfAlertSpansSec(metadata) {
   }
 
   return spans;
+}
+
+function createShapesFromSpans(spans, xMax, markerColor, fillColor) {
+  return spans
+    .map(span => ({
+      startSec: Math.max(0, Math.min(span.startSec, xMax)),
+      endSec: Math.max(0, Math.min(span.endSec, xMax)),
+    }))
+    .flatMap(span => {
+      if (span.endSec < span.startSec) return [];
+      if (span.endSec === span.startSec) {
+        return [{
+          type: "line",
+          x0: span.startSec,
+          x1: span.startSec,
+          y0: 0,
+          y1: 1,
+          yref: "paper",
+          line: { color: markerColor, width: 1.5, dash: "dot" },
+        }];
+      }
+
+      return [{
+        type: "rect",
+        x0: span.startSec,
+        x1: span.endSec,
+        y0: 0,
+        y1: 1,
+        yref: "paper",
+        line: { width: 0 },
+        fillcolor: fillColor,
+        layer: "below",
+      }];
+    });
+}
+
+function getAllAlertShapes(metadata, xMax) {
+  const allShapes = [];
+  for (const [eventCode, config] of Object.entries(ALERT_EVENT_CONFIG)) {
+    const spans = extractAlertSpansByCode(metadata, eventCode);
+    const shapes = createShapesFromSpans(spans, xMax, config.markerColor, config.fillColor);
+    allShapes.push(...shapes);
+  }
+  return allShapes;
 }
 
 function buildTelemetryModel(metadata) {
@@ -458,37 +514,7 @@ export function createTelemetryGraphs({
     );
 
     const cfg = { displayModeBar: false, responsive: true, staticPlot: false };
-    const dsfAlertSpanShapes = extractDsfAlertSpansSec(metadata)
-      .map(span => ({
-        startSec: Math.max(0, Math.min(span.startSec, telemetryModel.xMax)),
-        endSec: Math.max(0, Math.min(span.endSec, telemetryModel.xMax)),
-      }))
-      .flatMap(span => {
-        if (span.endSec < span.startSec) return [];
-        if (span.endSec === span.startSec) {
-          return [{
-            type: "line",
-            x0: span.startSec,
-            x1: span.startSec,
-            y0: 0,
-            y1: 1,
-            yref: "paper",
-            line: { color: "rgba(255, 209, 102, 0.95)", width: 1.5, dash: "dot" },
-          }];
-        }
-
-        return [{
-          type: "rect",
-          x0: span.startSec,
-          x1: span.endSec,
-          y0: 0,
-          y1: 1,
-          yref: "paper",
-          line: { width: 0 },
-          fillcolor: "rgba(255, 209, 102, 0.14)",
-          layer: "below",
-        }];
-      });
+    const alertShapes = getAllAlertShapes(metadata, telemetryModel.xMax);
 
     window.Plotly.react(
       laneChartEl,
@@ -510,7 +536,7 @@ export function createTelemetryGraphs({
           y1: -0.2,
           line: { color: "rgba(255, 209, 102, 0.75)", width: 1.2, dash: "dot" },
         },
-        ...dsfAlertSpanShapes,
+        ...alertShapes,
       ]),
       cfg,
     );
