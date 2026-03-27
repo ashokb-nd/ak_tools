@@ -20,7 +20,7 @@ from .model_fetcher import fetch_all_models
 from ak_tools.change_configs import copy_section_to_other_configs
 from .s3_presigner import main as s3_presigner_main
 from .neo_server import start_neo_server
-from .sync_alert import download_alerts, LOCAL_STORAGE_DIR, s3_sync_path, sync_folder_to_s3
+from .sync_alert import download_alerts, LOCAL_STORAGE_DIR, s3_sync_path, sync_folder_to_s3, pull_from_s3
 
 CONFIG_MANAGER = ConfigManager()
 FETCH_SECTION = "fetch_all_models"
@@ -252,6 +252,32 @@ def neo_clean_cmd() -> None:
 
         shutil.rmtree(LOCAL_STORAGE_DIR)
         click.echo(f'Cleared: {LOCAL_STORAGE_DIR}')
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@neo_group.command("pull-s3", help="Download folders from S3 to local storage.")
+@click.option("--s3-uri", default=s3_sync_path, show_default=True, help="Source S3 URI to pull from.")
+@click.option("--ids-file", default=None, type=click.Path(exists=True, dir_okay=False), help="Optional file with alert IDs/avids (one per line) to download selectively.")
+def neo_pull_s3_cmd(s3_uri: str, ids_file: str | None) -> None:
+    """Sync from an S3 path down to LOCAL_STORAGE_DIR."""
+    try:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)-07s - %(name)-025s - %(message)s',
+            stream=sys.stdout,
+            force=True,
+        )
+
+        ids: list | None = None
+        if ids_file:
+            with open(ids_file, 'r', encoding='utf-8') as handle:
+                ids = [line.strip() for line in handle if line.strip() and not line.strip().startswith('#')]
+            click.echo(f'Filtering to {len(ids)} IDs from {ids_file}')
+
+        click.echo(f'Pulling {s3_uri} -> {LOCAL_STORAGE_DIR}')
+        pull_from_s3(destination_dir=LOCAL_STORAGE_DIR, s3_uri=s3_uri, ids=ids)
+        click.echo('Done.')
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 

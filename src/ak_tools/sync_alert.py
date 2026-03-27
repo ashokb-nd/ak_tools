@@ -314,6 +314,73 @@ def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None,
     logger.info('Completed download_alerts: downloaded_folders=%d', len(all_video_folders))
 
 
+def pull_from_s3(destination_dir: str = LOCAL_STORAGE_DIR, s3_uri: str = s3_sync_path, ids: list | None = None) -> None:
+    """Download folders from S3 to local destination directory.
+
+    Args:
+        destination_dir: local directory to sync into
+        s3_uri: source S3 URI (e.g. s3://bucket/prefix/)
+        ids: optional list of folder names to download; if None download all
+    """
+    if not osp.exists(destination_dir):
+        os.makedirs(destination_dir)
+
+    if ids is None:
+        logger.info('Syncing all folders from %s to %s', s3_uri, destination_dir)
+        cmd = ['aws', 's3', 'sync', s3_uri.rstrip('/') + '/', destination_dir]
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            logger.error('aws s3 sync failed with exit code %d', result.returncode)
+        else:
+            logger.info('pull_from_s3 complete')
+        return
+
+    bucket, prefix = parse_s3_uri(s3_uri)
+    prefix = prefix.rstrip('/') + '/' if prefix else ''
+
+    s3_client = boto3.client('s3')
+    paginator = s3_client.get_paginator('list_objects_v2')
+    pages = paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter='/')
+
+    available_ids = []
+    for page in pages:
+        for cp in page.get('CommonPrefixes', []):
+            folder_name = cp['Prefix'].rstrip('/').split('/')[-1]
+            available_ids.append(folder_name)
+
+    if not available_ids:
+        logger.warning('No folders found under s3://%s/%s', bucket, prefix)
+        return
+
+    targets = [i for i in available_ids if i in ids]
+    missing = [i for i in ids if i not in available_ids]
+    if missing:
+        logger.warning('IDs not found in S3: %s', missing)
+
+    logger.info('Pulling %d/%d folders from s3://%s/%s to %s', len(targets), len(available_ids), bucket, prefix, destination_dir)
+
+    s3_resource = boto3.resource('s3')
+    bucket_obj = s3_resource.Bucket(bucket)
+
+    for folder_name in targets:
+        folder_prefix = f'{prefix}{folder_name}/'
+        local_folder = osp.join(destination_dir, folder_name)
+        if not osp.exists(local_folder):
+            os.makedirs(local_folder)
+
+        objects = list(bucket_obj.objects.filter(Prefix=folder_prefix))
+        logger.info('Downloading %s (%d files)', folder_name, len(objects))
+        for obj in objects:
+            filename = obj.key[len(folder_prefix):]
+            if not filename or '/' in filename:
+                continue
+            file_path = osp.join(local_folder, filename)
+            bucket_obj.download_file(obj.key, file_path)
+            logger.info('  Downloaded %s', filename)
+
+    logger.info('pull_from_s3 complete: %d folders downloaded', len(targets))
+
+
 if __name__ == '__main__':
     logformat = '%(asctime)s - %(levelname)-07s - %(name)-025s - %(message)s'
     logging.basicConfig(format=logformat, stream=sys.stdout, level=logging.INFO)
