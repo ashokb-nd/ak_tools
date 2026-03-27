@@ -282,6 +282,29 @@ def neo_pull_s3_cmd(s3_uri: str, ids_file: str | None) -> None:
         raise click.ClickException(str(exc)) from exc
 
 
+@neo_group.command("clean-s3", help="Delete all objects under the configured S3 sync path.")
+@click.option("--s3-uri", default=s3_sync_path, show_default=True, help="S3 URI to clear.")
+def neo_clean_s3_cmd(s3_uri: str) -> None:
+    """Remove all objects under s3_uri."""
+    click.confirm(f'This will permanently delete all objects under {s3_uri}. Continue?', abort=True)
+    try:
+        from .sync_alert import parse_s3_uri
+        bucket, prefix = parse_s3_uri(s3_uri)
+        prefix = prefix.rstrip('/') + '/' if prefix else ''
+        import boto3 as _boto3
+        s3 = _boto3.resource('s3')
+        bucket_obj = s3.Bucket(bucket)
+        objects = list(bucket_obj.objects.filter(Prefix=prefix))
+        if not objects:
+            click.echo('No objects found, nothing to delete.')
+            return
+        click.echo(f'Deleting {len(objects)} object(s) under s3://{bucket}/{prefix}...')
+        bucket_obj.delete_objects(Delete={'Objects': [{'Key': o.key} for o in objects]})
+        click.echo('Done.')
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
 @neo_group.command("sync-s3", help="Sync LOCAL_STORAGE_DIR to configured S3 path.")
 def neo_sync_s3_cmd() -> None:
     """Upload local neokpi storage to s3_sync_path."""
