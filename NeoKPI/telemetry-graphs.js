@@ -327,7 +327,6 @@ export function createTelemetryGraphs({
     telemetryModel = buildTelemetryModel(metadata);
     if (!telemetryModel || !window.Plotly || !laneChartEl || !inertialChartEl) return;
 
-    const laneRange = computeRobustYRange([telemetryModel.laneSeries], -1.5, 1.5);
     const inertialRange = computeRobustYRange([telemetryModel.accY, telemetryModel.accZ], -10, 10);
 
     const laneTrace = {
@@ -371,7 +370,7 @@ export function createTelemetryGraphs({
     window.Plotly.react(
       laneChartEl,
       [laneTrace],
-      plotLayout("Lane Offset", telemetryModel.xMax, laneRange.min, laneRange.max),
+      plotLayout("Lane Offset", telemetryModel.xMax, -0.5, 0.5),
       cfg,
     );
     window.Plotly.react(
