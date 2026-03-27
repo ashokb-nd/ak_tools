@@ -4,14 +4,34 @@ import os.path as osp
 import sys
 import logging
 import subprocess
+import re
 import boto3
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 AVC_API_ENDPOINT = 'https://analytics-kpis.netradyne.info/avc_api'
 s3_sync_path = 's3://netradyne-sharing/analytics/ashok/alert_debug/'
+LOCAL_STORAGE_DIR = osp.expanduser('~/neokpi')
 
 logger = logging.getLogger(__name__)
+
+
+def infer_alert_type(alert_value):
+    """Infer alert input type from value format.
+
+    Rules:
+    - all digits -> alert_id
+    - alphanumeric with optional hyphens (contains a letter) -> avid
+    """
+    value = str(alert_value).strip()
+    if value.isdigit():
+        return 'alert_id'
+
+    if re.fullmatch(r'[A-Za-z0-9-]+', value) and re.search(r'[A-Za-z]', value):
+        return 'avid'
+
+    logger.warning('Could not confidently infer alert type for %s, defaulting to alert_id', alert_value)
+    return 'alert_id'
 
 
 def parse_s3_uri(s3_uri):
@@ -249,25 +269,26 @@ def download_alert(alert_id, download_dir, env='production', input_type='alert_i
     return video_folders
 
 
-def download_alerts(alert_list, download_dir, alert_type='alert_id', env='production', downscale=False, sync_s3_uri=None):
+def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None, env='production', downscale=False, sync_s3_uri=None):
     """Download multiple alerts.
 
     Args:
         alert_list (list): list of alert IDs, avids, or aaids
         download_dir (str): path to download directory
-        alert_type (str): 'alert_id', 'avid', or 'aaid'
+        alert_type (str|None): 'alert_id', 'avid', or 'aaid'. If None, infer from value.
         env (str): 'production' or 'staging'
         downscale (bool): whether to downscale downloaded mp4 videos
         sync_s3_uri (str|None): optional destination S3 URI for final sync
     """
     all_video_folders = []
     for alert_id in alert_list:
+        resolved_alert_type = alert_type if alert_type is not None else infer_alert_type(alert_id)
         try:
             downloaded_folders = download_alert(
                 alert_id,
                 download_dir,
                 env=env,
-                input_type=alert_type,
+                input_type=resolved_alert_type,
                 downscale=downscale,
             )
             all_video_folders.extend(downloaded_folders)
@@ -292,4 +313,4 @@ if __name__ == '__main__':
     # download_alerts(alerts, '/path/to/download', alert_type='alert_id')
 
     avids = ['a90c7bc4-8ea0-4a0b-8e48-b7835c02c0f8','4047fa8b-b0d7-4ac6-b248-f7cf6b5894b1']
-    download_alerts(avids, './temp/', alert_type='avid', downscale=True, sync_s3_uri=s3_sync_path)
+    download_alerts(avids, downscale=True, sync_s3_uri=s3_sync_path)
