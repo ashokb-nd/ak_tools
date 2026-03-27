@@ -433,6 +433,15 @@ function seekBy(deltaSec) {
   seekToTime((video1El.currentTime || 0) + deltaSec);
 }
 
+function updateSeekProgressFill() {
+  if (!vcSeekEl) return;
+
+  const duration = Number.isFinite(video1El.duration) ? video1El.duration : 0;
+  const current = Number.isFinite(video1El.currentTime) ? video1El.currentTime : 0;
+  const percent = duration > 0 ? Math.max(0, Math.min(100, (current / duration) * 100)) : 0;
+  vcSeekEl.style.setProperty("--seek-progress", `${percent}%`);
+}
+
 function isTypingTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
@@ -504,6 +513,7 @@ function updateControlsUI() {
   vcPlayPauseEl.innerHTML = video1El.paused ? "&#9654;" : "&#9646;&#9646;";
   vcCurrentEl.textContent = fmtTime(video1El.currentTime);
   if (isFinite(video1El.duration)) vcSeekEl.value = video1El.currentTime;
+  updateSeekProgressFill();
   telemetryGraphs.updateForTime(video1El.currentTime);
 }
 
@@ -517,6 +527,7 @@ function wireVideoSync() {
   video1El.addEventListener("loadedmetadata", () => {
     vcSeekEl.max = video1El.duration;
     vcSeekEl.value = 0;
+    updateSeekProgressFill();
     vcDurationEl.textContent = fmtTime(video1El.duration);
     vcCurrentEl.textContent = "0:00";
   });

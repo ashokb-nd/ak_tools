@@ -247,8 +247,8 @@ body {
 .video-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
+  gap: 6px;
+  padding: 4px 10px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
@@ -258,24 +258,23 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  width: 36px;
-  height: 30px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 4px;
+  width: 28px;
+  height: 24px;
   padding: 0;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   flex-shrink: 0;
   line-height: 1;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .vc-btn:hover {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: #fff;
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .vc-time {
@@ -291,9 +290,57 @@ body {
 #vc-seek {
   flex: 1;
   min-width: 0;
-  accent-color: var(--brand);
+  --seek-progress: 0%;
+  --seek-fill: var(--brand);
+  --seek-unfill: var(--border);
   cursor: pointer;
-  height: 4px;
+  height: 14px;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+#vc-seek::-webkit-slider-runnable-track {
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    var(--seek-fill) 0%,
+    var(--seek-fill) var(--seek-progress),
+    var(--seek-unfill) var(--seek-progress),
+    var(--seek-unfill) 100%
+  );
+  border-radius: 999px;
+}
+
+#vc-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--brand);
+  border: none;
+  margin-top: -3.5px;
+}
+
+#vc-seek::-moz-range-track {
+  height: 2px;
+  background: var(--seek-unfill);
+  border-radius: 999px;
+  border: none;
+}
+
+#vc-seek::-moz-range-progress {
+  height: 2px;
+  background: var(--seek-fill);
+  border-radius: 999px;
+}
+
+#vc-seek::-moz-range-thumb {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--brand);
+  border: none;
 }
 
 /* ---- Telemetry panel ---- */
