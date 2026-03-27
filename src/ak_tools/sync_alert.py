@@ -390,24 +390,16 @@ def pull_from_s3(destination_dir: str = LOCAL_STORAGE_DIR, s3_uri: str = s3_sync
 
     logger.info('Pulling %d/%d folders from s3://%s/%s to %s', len(targets), len(available_ids), bucket, prefix, destination_dir)
 
-    s3_resource = boto3.resource('s3')
-    bucket_obj = s3_resource.Bucket(bucket)
-
     for folder_name in targets:
-        folder_prefix = f'{prefix}{folder_name}/'
+        folder_s3_path = f's3://{bucket}/{prefix}{folder_name}/'
         local_folder = osp.join(destination_dir, folder_name)
-        if not osp.exists(local_folder):
-            os.makedirs(local_folder)
-
-        objects = list(bucket_obj.objects.filter(Prefix=folder_prefix))
-        logger.info('Downloading %s (%d files)', folder_name, len(objects))
-        for obj in objects:
-            filename = obj.key[len(folder_prefix):]
-            if not filename or '/' in filename:
-                continue
-            file_path = osp.join(local_folder, filename)
-            bucket_obj.download_file(obj.key, file_path)
-            logger.info('  Downloaded %s', filename)
+        cmd = ['aws', 's3', 'sync', folder_s3_path, local_folder]
+        logger.info('Syncing %s -> %s', folder_s3_path, local_folder)
+        result = subprocess.run(cmd, capture_output=True)
+        if result.returncode != 0:
+            logger.error('aws s3 sync failed for %s: %s', folder_name, result.stderr.decode('utf-8', errors='ignore'))
+        else:
+            logger.info('Downloaded %s', folder_name)
 
     logger.info('pull_from_s3 complete: %d folders downloaded', len(targets))
 
