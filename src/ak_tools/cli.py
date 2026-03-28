@@ -357,11 +357,26 @@ def neo_sync_s3_cmd() -> None:
 @click.option("--host", default="localhost", show_default=True, help="Host to bind NeoKPI server.")
 @click.option("--port", type=int, default=8090, show_default=True, help="Port for NeoKPI server.")
 @click.option("--data-dir", default=LOCAL_STORAGE_DIR, show_default=True, help="Alert data directory for NeoKPI.")
-def neo_start_cmd(host: str, port: int, data_dir: str) -> None:
+@click.option("--s3", "use_s3", is_flag=True, help="Enable S3 direct playback using configured s3_sync_path.")
+@click.option(
+    "--s3-presign-expiry",
+    type=click.IntRange(60, 86400),
+    default=3600,
+    show_default=True,
+    help="Presigned URL expiry (seconds) for S3 direct playback.",
+)
+def neo_start_cmd(
+    host: str,
+    port: int,
+    data_dir: str,
+    use_s3: bool,
+    s3_presign_expiry: int,
+) -> None:
     """Start the NeoKPI Python server with configured data directory."""
     try:
         app_dir = NEOKPI_APP_DIR
         resolved_data_dir = osp.expanduser(data_dir)
+        resolved_s3_uri = s3_sync_path if use_s3 else None
 
         if not osp.isdir(app_dir):
             raise click.ClickException(f'NeoKPI directory not found: {app_dir}')
@@ -369,9 +384,18 @@ def neo_start_cmd(host: str, port: int, data_dir: str) -> None:
         click.echo(f'Starting NeoKPI (Python) from {app_dir}')
         click.echo(f'HOST={host}')
         click.echo(f'ALERT_DATA_DIR={resolved_data_dir}')
+        click.echo(f'S3_DIRECT_URI={resolved_s3_uri or "disabled"}')
+        click.echo(f'S3_PRESIGN_EXPIRY={s3_presign_expiry}')
         click.echo(f'PORT={port}')
 
-        start_neo_server(host=host, port=port, data_dir=resolved_data_dir, app_dir=app_dir)
+        start_neo_server(
+            host=host,
+            port=port,
+            data_dir=resolved_data_dir,
+            app_dir=app_dir,
+            s3_uri=resolved_s3_uri,
+            s3_presign_expiry=s3_presign_expiry,
+        )
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 

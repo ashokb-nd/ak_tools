@@ -6,7 +6,12 @@ import os.path as osp
 import re
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import unquote, urlparse
+
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
+from .sync_alert import parse_s3_uri
 
 
 MIME_TYPES = {
@@ -24,6 +29,9 @@ class NeoServerConfig:
     data_dir: str
     static_dir: str
     markr_edge_dir: str
+    s3_bucket: str | None = None
+    s3_prefix: str = ""
+    s3_presign_expiry: int = 3600
 
 
 def _safe_join(base_dir: str, relative_path: str) -> str | None:
@@ -89,7 +97,83 @@ def _alert_summary(data_dir: str, alert_id: str) -> dict:
     }
 
 
+def _empty_alert_summary(alert_id: str) -> dict:
+    return {
+        "alertId": alert_id,
+        "videos": [],
+        "hasMetadata": False,
+        "metadataPreview": "",
+    }
+
+
+def _s3_key(prefix: str, alert_id: str, filename: str | None = None) -> str:
+    parts = [p for p in [prefix.strip("/"), alert_id.strip("/")] if p]
+    if filename is not None:
+        parts.append(filename)
+    return "/".join(parts)
+
+
+def _s3_list_alert_ids(s3_client, bucket: str, prefix: str) -> list[str]:
+    delimiter_prefix = prefix.rstrip("/") + "/" if prefix else ""
+    paginator = s3_client.get_paginator("list_objects_v2")
+    pages = paginator.paginate(Bucket=bucket, Prefix=delimiter_prefix, Delimiter="/")
+
+    alert_ids: list[str] = []
+    for page in pages:
+        for cp in page.get("CommonPrefixes", []):
+            folder_name = cp["Prefix"].rstrip("/").split("/")[-1]
+            if folder_name:
+                alert_ids.append(folder_name)
+    return sorted(alert_ids)
+
+
+def _s3_list_alert_files(s3_client, bucket: str, prefix: str, alert_id: str) -> list[str]:
+    alert_prefix = _s3_key(prefix, alert_id) + "/"
+    paginator = s3_client.get_paginator("list_objects_v2")
+    pages = paginator.paginate(Bucket=bucket, Prefix=alert_prefix)
+
+    files: list[str] = []
+    for page in pages:
+        for obj in page.get("Contents", []):
+            key = obj.get("Key", "")
+            if not key or key.endswith("/"):
+                continue
+            files.append(key.rsplit("/", 1)[-1])
+    return files
+
+
+def _s3_read_text_object(s3_client, bucket: str, key: str) -> str:
+    response = s3_client.get_object(Bucket=bucket, Key=key)
+    return response["Body"].read().decode("utf-8", errors="ignore")
+
+
+def _s3_alert_summary(s3_client, bucket: str, prefix: str, alert_id: str) -> dict:
+    files = _s3_list_alert_files(s3_client, bucket, prefix, alert_id)
+    videos = sorted(
+        [f for f in files if f.lower().endswith(".mp4")],
+        key=lambda x: [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", x)],
+    )
+    has_metadata = "metadata.txt" in files
+    metadata_preview = ""
+
+    if has_metadata:
+        try:
+            metadata_key = _s3_key(prefix, alert_id, "metadata.txt")
+            metadata_preview = _s3_read_text_object(s3_client, bucket, metadata_key)[:400]
+        except (ClientError, BotoCoreError):
+            has_metadata = False
+
+    return {
+        "alertId": alert_id,
+        "videos": videos,
+        "hasMetadata": has_metadata,
+        "metadataPreview": metadata_preview,
+    }
+
+
 def make_handler(config: NeoServerConfig):
+    s3_client = boto3.client("s3") if config.s3_bucket else None
+
     class NeoHandler(BaseHTTPRequestHandler):
         server_version = "NeoKPI-Python/1.0"
 
@@ -201,6 +285,17 @@ def make_handler(config: NeoServerConfig):
 
         def _handle_api(self, path: str) -> None:
             if path == "/api/alerts":
+                if config.s3_bucket:
+                    try:
+                        alert_ids = _s3_list_alert_ids(s3_client, config.s3_bucket, config.s3_prefix)
+                    except (ClientError, BotoCoreError) as exc:
+                        self._send_json(500, {"error": f"Failed to list S3 alerts: {str(exc)}"})
+                        return
+
+                    alerts = [_empty_alert_summary(alert_id) for alert_id in alert_ids]
+                    self._send_json(200, {"dataDir": config.data_dir, "count": len(alerts), "alerts": alerts})
+                    return
+
                 if not osp.isdir(config.data_dir):
                     self._send_json(200, {"dataDir": config.data_dir, "count": 0, "alerts": []})
                     return
@@ -219,6 +314,49 @@ def make_handler(config: NeoServerConfig):
                 alert_id = _sanitize_alert_id(unquote(match.group(1)))
                 if not alert_id:
                     self._send_json(400, {"error": "Invalid alert id"})
+                    return
+
+                if config.s3_bucket:
+                    try:
+                        summary = _s3_alert_summary(s3_client, config.s3_bucket, config.s3_prefix, alert_id)
+                    except (ClientError, BotoCoreError) as exc:
+                        self._send_json(500, {"error": f"Failed to load S3 alert: {str(exc)}"})
+                        return
+
+                    if not summary["videos"] and not summary["hasMetadata"]:
+                        self._send_json(404, {"error": "Alert directory not found"})
+                        return
+
+                    metadata_text = ""
+                    if summary["hasMetadata"]:
+                        metadata_key = _s3_key(config.s3_prefix, alert_id, "metadata.txt")
+                        try:
+                            metadata_text = _s3_read_text_object(s3_client, config.s3_bucket, metadata_key)
+                        except (ClientError, BotoCoreError):
+                            metadata_text = ""
+
+                    video_urls = []
+                    for name in summary["videos"]:
+                        key = _s3_key(config.s3_prefix, alert_id, name)
+                        try:
+                            presigned = s3_client.generate_presigned_url(
+                                "get_object",
+                                Params={"Bucket": config.s3_bucket, "Key": key},
+                                ExpiresIn=config.s3_presign_expiry,
+                            )
+                            video_urls.append(presigned)
+                        except (ClientError, BotoCoreError):
+                            # Keep index alignment with summary["videos"] for frontend lookup.
+                            video_urls.append("")
+
+                    self._send_json(
+                        200,
+                        {
+                            **summary,
+                            "metadataText": metadata_text,
+                            "videoUrls": video_urls,
+                        },
+                    )
                     return
 
                 alert_dir = osp.join(config.data_dir, alert_id)
@@ -283,7 +421,14 @@ def make_handler(config: NeoServerConfig):
     return NeoHandler
 
 
-def start_neo_server(host: str = "localhost", port: int = 8090, data_dir: str | None = None, app_dir: str | None = None) -> None:
+def start_neo_server(
+    host: str = "localhost",
+    port: int = 8090,
+    data_dir: str | None = None,
+    app_dir: str | None = None,
+    s3_uri: str | None = None,
+    s3_presign_expiry: int = 3600,
+) -> None:
     if app_dir is None:
         raise ValueError("app_dir is required")
 
@@ -302,9 +447,21 @@ def start_neo_server(host: str = "localhost", port: int = 8090, data_dir: str | 
         static_dir=static_dir,
         markr_edge_dir=markr_edge_dir,
     )
+
+    if s3_uri:
+        bucket, prefix = parse_s3_uri(s3_uri)
+        config.s3_bucket = bucket
+        config.s3_prefix = prefix
+        config.s3_presign_expiry = int(s3_presign_expiry)
+
     handler = make_handler(config)
     server = ThreadingHTTPServer((host, port), handler)
 
     print(f"Mock alert site running at http://{host}:{port}")
     print(f"Loading alert data from: {config.data_dir}")
+    if config.s3_bucket:
+        print(
+            f"Using S3 direct video mode from s3://{config.s3_bucket}/{config.s3_prefix} "
+            f"(presign expiry: {config.s3_presign_expiry}s)"
+        )
     server.serve_forever()
