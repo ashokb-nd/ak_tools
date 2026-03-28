@@ -488,6 +488,13 @@ function wireKeyboardShortcuts() {
       return;
     }
 
+    if (e.key === "Escape") {
+      e.preventDefault();
+      document.activeElement?.blur();
+      document.body.focus();
+      return;
+    }
+
     if (isTypingTarget(e.target)) return;
 
     if (e.code === "Space") {
