@@ -33,6 +33,15 @@ REPO_ROOT = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
 NEOKPI_APP_DIR = osp.join(REPO_ROOT, 'NeoKPI')
 
 
+def _read_id_file(filepath: str) -> list[str]:
+    """Read newline-delimited IDs from a file, skipping blanks and comments."""
+    with open(filepath, 'r', encoding='utf-8') as handle:
+        return [
+            line.strip() for line in handle
+            if line.strip() and not line.strip().startswith('#')
+        ]
+
+
 @click.group(help="My personal work toolbox.")
 def cli() -> None:
     """Top-level Click command group."""
@@ -191,8 +200,9 @@ def neo_s3_presigner_cmd(port: int, host: str, offline: bool, outdir: str | None
         raise click.ClickException(str(exc)) from exc
 
 
-@neo_group.command("add", help="Read alert ids/avids from a file (one per line) and download them.")
-@click.argument("filepath", type=click.Path(exists=True, dir_okay=False, path_type=str))
+@neo_group.command("add", help="Download alert ids/avids passed directly or via --file.")
+@click.argument("alert_ids", nargs=-1)
+@click.option("--file", "file_path", type=click.Path(exists=True, dir_okay=False, path_type=str), default=None, help="Optional file with alert ids/avids, one per line.")
 @click.option("--alert_type", default=None, help="Optional input type override: alert_id, avid, or aaid.")
 @click.option("--env", default="production", show_default=True, help="Environment for AVC API lookup.")
 @click.option("--downscale/--no-downscale", default=True, show_default=True, help="Downscale mp4 files after download.")
@@ -205,14 +215,15 @@ def neo_s3_presigner_cmd(port: int, host: str, offline: bool, outdir: str | None
 )
 @click.option("--sync-s3", is_flag=True, help="Sync downloaded data to configured S3 path.")
 def neo_add_cmd(
-    filepath: str,
+    alert_ids: tuple[str, ...],
+    file_path: str | None,
     alert_type: str | None,
     env: str,
     downscale: bool,
     compression_level: int,
     sync_s3: bool,
 ) -> None:
-    """Download alerts listed in a file using sync_alert.download_alerts."""
+    """Download alerts passed directly or loaded from a file."""
     try:
         logging.basicConfig(
             level=logging.INFO,
@@ -226,16 +237,18 @@ def neo_add_cmd(
         click.echo('         export AWS_SECRET_ACCESS_KEY="..."')
         click.echo('         export AWS_SESSION_TOKEN="..."')
 
-        with open(filepath, 'r', encoding='utf-8') as handle:
-            alert_list = [
-                line.strip() for line in handle
-                if line.strip() and not line.strip().startswith('#')
-            ]
+        alert_list = list(alert_ids)
+        if file_path:
+            file_alerts = _read_id_file(file_path)
+            if not file_alerts:
+                raise click.ClickException(f'No alert IDs found in file: {file_path}')
+            alert_list.extend(file_alerts)
+            click.echo(f'Loaded {len(file_alerts)} entries from {file_path}')
 
         if not alert_list:
-            raise click.ClickException(f'No alert IDs found in file: {filepath}')
+            raise click.ClickException('Provide at least one alert ID or use --file <filepath>.')
 
-        click.echo(f'Found {len(alert_list)} entries in {filepath}')
+        click.echo(f'Processing {len(alert_list)} alert ID(s)')
         download_alerts(
             alert_list,
             alert_type=alert_type,
@@ -286,8 +299,7 @@ def neo_pull_s3_cmd(s3_uri: str, ids_file: str | None) -> None:
 
         ids: list | None = None
         if ids_file:
-            with open(ids_file, 'r', encoding='utf-8') as handle:
-                ids = [line.strip() for line in handle if line.strip() and not line.strip().startswith('#')]
+            ids = _read_id_file(ids_file)
             click.echo(f'Filtering to {len(ids)} IDs from {ids_file}')
 
         click.echo(f'Pulling {s3_uri} -> {LOCAL_STORAGE_DIR}')

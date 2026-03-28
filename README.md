@@ -42,6 +42,8 @@ ak fetch_all_models
 ak change_config /path/to/nd_config_source.ini
 ak copy
 ak copy <alias-or-text>
+ak neo add <id1> <id2>
+ak neo add --file /path/to/ids.txt
 ak neo [--port PORT] [--host HOST] [--offline] [--outdir PATH]
 
 avc --help
@@ -54,6 +56,7 @@ avc --file /path/to/ids.csv --input_type alert_id --output results.csv
 - `ak clean_log` writes `analytics_filtered.log`.
 - `ak fetch_all_models` persists defaults in `~/.ak_tools/config.ini`.
 - `ak copy` lists aliases when run without arguments.
+- `ak neo add` accepts direct IDs, `--file`, or both.
 - `avc` accepts either direct IDs or `--file` (not both).
 - `ak neo` starts an S3 file content downloader server with local storage caching.
 
