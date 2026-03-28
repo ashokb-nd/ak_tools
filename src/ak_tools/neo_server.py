@@ -293,7 +293,7 @@ def make_handler(config: NeoServerConfig):
                         return
 
                     alerts = [_empty_alert_summary(alert_id) for alert_id in alert_ids]
-                    self._send_json(200, {"dataDir": config.data_dir, "count": len(alerts), "alerts": alerts})
+                    self._send_json(200, {"dataDir": f"s3://{config.s3_bucket}/{config.s3_prefix}", "mode": "s3", "count": len(alerts), "alerts": alerts})
                     return
 
                 if not osp.isdir(config.data_dir):
