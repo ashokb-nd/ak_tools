@@ -101,11 +101,11 @@ def downscale_video(video_path, output_path, compression_level=1):
         return False
     
     try:
-        # Check if ffmpeg is available
-        result = subprocess.run(['ffmpeg', '-version'], capture_output=True, timeout=5)
-        if result.returncode != 0:
-            logger.warning('ffmpeg not available, skipping downscaling')
-            return False
+        # # Check if ffmpeg is available
+        # result = subprocess.run(['ffmpeg', '-version'], capture_output=True, timeout=5)
+        # if result.returncode != 0:
+        #     logger.warning('ffmpeg not available, skipping downscaling')
+        #     return False
             
         settings = get_compression_settings(compression_level)
         resolution = settings['resolution']
@@ -141,7 +141,7 @@ def downscale_video(video_path, output_path, compression_level=1):
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             os.remove(video_path)
             os.rename(output_path, video_path)
-            logger.info('Downscaling complete: %s', video_path)
+            # logger.info('Downscaling complete: %s', video_path)
             return True
         else:
             logger.error('Output file empty or missing after downscaling: %s', output_path)
