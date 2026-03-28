@@ -118,6 +118,7 @@ def downscale_video(video_path, output_path, compression_level=1):
             '-vf', f'scale=-2:{resolution}:flags=fast_bilinear,fps={fps}',
             '-c:v', 'libx264', '-preset', preset, '-crf', crf,
             '-c:a', 'copy',
+            '-movflags', '+faststart',
             '-y', output_path
         ]
         logger.info(
