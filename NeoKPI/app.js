@@ -1,5 +1,5 @@
 import { VideoAnnotator } from "/markrEdge/video-annotator.js";
-import { createTelemetryGraphs } from "./telemetry-graphs.js";
+import { createTelemetryGraphs } from "./telemetry/index.js";
 
 // 0.mp4 = outward (box 1), 1.mp4 = inward, 8.mp4 = DMS
 const FIRST_VIDEO = "0.mp4";
