@@ -35,11 +35,13 @@ const telemetryGridEl = document.querySelector("#telemetry-grid");
 const telemetryLayoutResetEl = document.querySelector("#telemetry-layout-reset");
 const telemetryEventHistoryPathEl = document.querySelector("#telemetry-event-history-path");
 const telemetryEventHistoryRelativeTimeEl = document.querySelector("#telemetry-event-history-relative-time");
+const telemetryEventHistoryKeepOpenEl = document.querySelector("#telemetry-event-history-keep-open");
 
 const TELEMETRY_LAYOUT_STORAGE_KEY = "neoKpi.telemetryGraphOrder.v1";
 const TELEMETRY_METADATA_VIEWER_STORAGE_KEY = "neoKpi.telemetryMetadataViewer.v1";
 const DEFAULT_TELEMETRY_METADATA_PATH = telemetryEventHistoryPathEl?.value || "";
 const DEFAULT_TELEMETRY_METADATA_RELATIVE_TIME = Boolean(telemetryEventHistoryRelativeTimeEl?.checked);
+const DEFAULT_TELEMETRY_METADATA_KEEP_OPEN = Boolean(telemetryEventHistoryKeepOpenEl?.checked);
 
 // State
 let activeDetail = null;
@@ -61,6 +63,7 @@ const telemetryGraphs = createTelemetryGraphs({
   eventHistoryEl: document.querySelector("#telemetry-event-history"),
   eventHistoryPathEl: telemetryEventHistoryPathEl,
   eventHistoryRelativeTimeEl: telemetryEventHistoryRelativeTimeEl,
+  eventHistoryKeepOpenEl: telemetryEventHistoryKeepOpenEl,
   laneValueEl: document.querySelector("#telemetry-lane-value"),
   lateralValueEl: document.querySelector("#telemetry-lateral-value"),
   drivingValueEl: document.querySelector("#telemetry-driving-value"),
@@ -112,6 +115,7 @@ function readTelemetryMetadataViewerSettings() {
     return {
       path: typeof parsed.path === "string" ? parsed.path : DEFAULT_TELEMETRY_METADATA_PATH,
       relativeTime: Boolean(parsed.relativeTime),
+      keepOpen: Boolean(parsed.keepOpen),
     };
   } catch {
     return null;
@@ -136,12 +140,18 @@ function applyTelemetryMetadataViewerSettings(settings, dispatch = false) {
     telemetryEventHistoryRelativeTimeEl.checked = Boolean(settings?.relativeTime);
     if (dispatch) telemetryEventHistoryRelativeTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
   }
+
+  if (telemetryEventHistoryKeepOpenEl) {
+    telemetryEventHistoryKeepOpenEl.checked = Boolean(settings?.keepOpen);
+    if (dispatch) telemetryEventHistoryKeepOpenEl.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 }
 
 function getTelemetryMetadataViewerSettingsFromDom() {
   return {
     path: telemetryEventHistoryPathEl?.value ?? DEFAULT_TELEMETRY_METADATA_PATH,
     relativeTime: Boolean(telemetryEventHistoryRelativeTimeEl?.checked),
+    keepOpen: Boolean(telemetryEventHistoryKeepOpenEl?.checked),
   };
 }
 
@@ -203,11 +213,13 @@ function initTelemetryLayoutControls() {
     storedMetadataViewerSettings || {
       path: DEFAULT_TELEMETRY_METADATA_PATH,
       relativeTime: DEFAULT_TELEMETRY_METADATA_RELATIVE_TIME,
+      keepOpen: DEFAULT_TELEMETRY_METADATA_KEEP_OPEN,
     },
   );
 
   telemetryEventHistoryPathEl?.addEventListener("input", persistTelemetryMetadataViewerSettings);
   telemetryEventHistoryRelativeTimeEl?.addEventListener("change", persistTelemetryMetadataViewerSettings);
+  telemetryEventHistoryKeepOpenEl?.addEventListener("change", persistTelemetryMetadataViewerSettings);
 
   let draggedCard = null;
 
@@ -261,6 +273,7 @@ function initTelemetryLayoutControls() {
       applyTelemetryMetadataViewerSettings({
         path: DEFAULT_TELEMETRY_METADATA_PATH,
         relativeTime: DEFAULT_TELEMETRY_METADATA_RELATIVE_TIME,
+        keepOpen: DEFAULT_TELEMETRY_METADATA_KEEP_OPEN,
       }, true);
       persistTelemetryMetadataViewerSettings();
       clearTelemetryDropHints();

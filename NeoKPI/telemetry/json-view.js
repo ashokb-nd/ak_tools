@@ -74,7 +74,7 @@ function createJsonPrimitiveNode(value) {
   return createJsonToken("telemetry-json-null", String(value));
 }
 
-function createJsonBranchNode(value, depth = 0) {
+function createJsonBranchNode(value, depth = 0, keepOpen = false) {
   const isArray = Array.isArray(value);
   const entries = isArray
     ? value.map((item, index) => [String(index), item])
@@ -82,7 +82,7 @@ function createJsonBranchNode(value, depth = 0) {
 
   const details = document.createElement("details");
   details.className = "telemetry-json-branch";
-  details.open = depth < 1;
+  details.open = keepOpen || depth < 1;
 
   const summary = document.createElement("summary");
   summary.className = "telemetry-json-summary";
@@ -105,7 +105,7 @@ function createJsonBranchNode(value, depth = 0) {
     row.appendChild(createJsonToken("telemetry-json-sep", ":"));
 
     if (childValue && typeof childValue === "object") {
-      row.appendChild(createJsonBranchNode(childValue, depth + 1));
+      row.appendChild(createJsonBranchNode(childValue, depth + 1, keepOpen));
     } else {
       row.appendChild(createJsonPrimitiveNode(childValue));
     }
@@ -120,7 +120,7 @@ function createJsonBranchNode(value, depth = 0) {
 export function renderExtendedEventHistory(metadata, eventHistoryEl, options = {}) {
   if (!eventHistoryEl) return;
 
-  const { path = "", relativeTimes = false } = options;
+  const { path = "", relativeTimes = false, keepOpen = false } = options;
 
   eventHistoryEl.innerHTML = "";
 
@@ -150,7 +150,7 @@ export function renderExtendedEventHistory(metadata, eventHistoryEl, options = {
   root.className = "telemetry-json-tree";
 
   if (displayValue && typeof displayValue === "object") {
-    root.appendChild(createJsonBranchNode(displayValue));
+    root.appendChild(createJsonBranchNode(displayValue, 0, keepOpen));
   } else {
     root.appendChild(createJsonPrimitiveNode(displayValue));
   }

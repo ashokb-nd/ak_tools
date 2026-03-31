@@ -21,6 +21,7 @@ export function createTelemetryGraphs({
   eventHistoryEl,
   eventHistoryPathEl,
   eventHistoryRelativeTimeEl,
+  eventHistoryKeepOpenEl,
   laneValueEl,
   lateralValueEl,
   drivingValueEl,
@@ -46,6 +47,7 @@ export function createTelemetryGraphs({
     renderExtendedEventHistory(currentMetadata, eventHistoryEl, {
       path: eventHistoryPathEl?.value?.trim() || "",
       relativeTimes: Boolean(eventHistoryRelativeTimeEl?.checked),
+      keepOpen: Boolean(eventHistoryKeepOpenEl?.checked),
     });
   }
 
@@ -57,6 +59,12 @@ export function createTelemetryGraphs({
 
   if (eventHistoryRelativeTimeEl) {
     eventHistoryRelativeTimeEl.addEventListener("change", () => {
+      renderMetadataViewer();
+    });
+  }
+
+  if (eventHistoryKeepOpenEl) {
+    eventHistoryKeepOpenEl.addEventListener("change", () => {
       renderMetadataViewer();
     });
   }
