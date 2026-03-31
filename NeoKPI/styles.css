@@ -532,6 +532,92 @@ body {
   user-select: none;
 }
 
+.telemetry-json-view {
+  width: 100%;
+  height: 160px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(8, 11, 20, 0.65);
+  padding: 8px;
+}
+
+.telemetry-json-tree {
+  font-size: 11px;
+  line-height: 1.45;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: #d5dbee;
+}
+
+.telemetry-json-branch {
+  margin: 0;
+  padding: 0;
+}
+
+.telemetry-json-summary {
+  cursor: pointer;
+  list-style: none;
+  color: #cfd6ef;
+  user-select: none;
+}
+
+.telemetry-json-summary::-webkit-details-marker {
+  display: none;
+}
+
+.telemetry-json-summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 12px;
+  color: #8b92b8;
+  transition: transform 0.12s ease;
+}
+
+.telemetry-json-branch[open] > .telemetry-json-summary::before {
+  transform: rotate(90deg);
+}
+
+.telemetry-json-children {
+  margin-left: 12px;
+  padding-left: 8px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+.telemetry-json-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.telemetry-json-key {
+  color: #7fd0ff;
+}
+
+.telemetry-json-index {
+  color: #93b8ff;
+}
+
+.telemetry-json-sep {
+  color: #8b92b8;
+}
+
+.telemetry-json-string {
+  color: #b8f38f;
+}
+
+.telemetry-json-number {
+  color: #ffd479;
+}
+
+.telemetry-json-boolean {
+  color: #ff9dc2;
+}
+
+.telemetry-json-null {
+  color: #b5a8ff;
+}
+
 @media (max-width: 980px) {
   .telemetry-grid {
     grid-template-columns: 1fr;
