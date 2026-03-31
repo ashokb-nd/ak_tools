@@ -321,6 +321,8 @@ def download_alerts(alert_list, download_dir=LOCAL_STORAGE_DIR, alert_type=None,
     all_video_folders = []
     for alert_id in alert_list:
         resolved_alert_type = alert_type if alert_type is not None else infer_alert_type(alert_id)
+        if resolved_alert_type == 'alert_id':
+            alert_id = int(alert_id)  # API expects alert_id as int
         logger.info('Processing %s as %s', alert_id, resolved_alert_type)
         try:
             downloaded_folders = download_alert(
