@@ -478,13 +478,49 @@ body {
 }
 
 .telemetry-smooth-slider {
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
-  writing-mode: bt-lr;
-  width: 18px;
+  -webkit-appearance: none;
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 20px;
   height: 128px;
-  accent-color: var(--brand);
+  background: transparent;
   cursor: pointer;
+  outline: none;
+}
+
+.telemetry-smooth-slider::-webkit-slider-runnable-track {
+  width: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+
+.telemetry-smooth-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--brand);
+  border: 2px solid #171b28;
+  box-shadow: 0 0 8px rgba(79, 130, 245, 0.7);
+  cursor: pointer;
+  margin-left: -5px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.telemetry-smooth-slider::-webkit-slider-thumb:hover {
+  background: var(--brand-hover);
+  box-shadow: 0 0 12px rgba(79, 130, 245, 0.9);
+}
+
+.telemetry-smooth-slider:disabled::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.telemetry-smooth-slider:disabled::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .telemetry-smooth-label {

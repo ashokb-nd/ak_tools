@@ -379,7 +379,7 @@ function plotLayout(yLabel, xMax = 1, yMin = undefined, yMax = undefined, extraS
       y0: 0,
       y1: 1,
       yref: "paper",
-      line: { color: "#f39c12", width: 1 },
+      line: { color: "#ffffff", width: 1, dash: "solid" },
     }, ...extraShapes],
   };
 }
@@ -511,7 +511,7 @@ export function createTelemetryGraphs({
       name: "PIL Corrected",
       x: telemetryModel.laneSeries.map(p => p.x),
       y: telemetryModel.laneSeries.map(p => p.y),
-      line: { color: "#ffd166", width: 2 },
+      line: { color: "#00e5ff", width: 1.8 },
       hovertemplate: "t=%{x:.2f}s<br>PIL=%{y:.4f}<extra></extra>",
     };
 
@@ -569,7 +569,7 @@ export function createTelemetryGraphs({
           x1: telemetryModel.xMax,
           y0: 0.2,
           y1: 0.2,
-          line: { color: "rgba(255, 209, 102, 0.75)", width: 1.2, dash: "dot" },
+          line: { color: "rgba(0, 229, 255, 0.5)", width: 1.2, dash: "dot" },
         },
         {
           type: "line",
@@ -577,7 +577,7 @@ export function createTelemetryGraphs({
           x1: telemetryModel.xMax,
           y0: -0.2,
           y1: -0.2,
-          line: { color: "rgba(255, 209, 102, 0.75)", width: 1.2, dash: "dot" },
+          line: { color: "rgba(0, 229, 255, 0.5)", width: 1.2, dash: "dot" },
         },
         ...alertShapes,
       ]),
