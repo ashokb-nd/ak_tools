@@ -542,6 +542,45 @@ body {
   padding: 8px;
 }
 
+.telemetry-json-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.telemetry-json-path-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  background: rgba(8, 11, 20, 0.72);
+  color: #d5dbee;
+  font-size: 11px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+.telemetry-json-path-input:focus {
+  outline: none;
+  border-color: rgba(127, 208, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(127, 208, 255, 0.12);
+}
+
+.telemetry-json-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.telemetry-json-toggle input {
+  margin: 0;
+}
+
 .telemetry-json-tree {
   font-size: 11px;
   line-height: 1.45;
@@ -618,8 +657,19 @@ body {
   color: #b5a8ff;
 }
 
+.telemetry-json-empty {
+  font-size: 11px;
+  color: #8b92b8;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
 @media (max-width: 980px) {
   .telemetry-grid {
     grid-template-columns: 1fr;
+  }
+
+  .telemetry-json-toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

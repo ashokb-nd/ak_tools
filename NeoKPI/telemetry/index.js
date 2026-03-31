@@ -19,6 +19,8 @@ export function createTelemetryGraphs({
   inertialChartEl,
   yawChartEl,
   eventHistoryEl,
+  eventHistoryPathEl,
+  eventHistoryRelativeTimeEl,
   laneValueEl,
   lateralValueEl,
   drivingValueEl,
@@ -38,6 +40,26 @@ export function createTelemetryGraphs({
   let smoothedAccYByWindow = null;
   let smoothedAccZByWindow = null;
   let smoothedYawByWindow = null;
+  let currentMetadata = null;
+
+  function renderMetadataViewer() {
+    renderExtendedEventHistory(currentMetadata, eventHistoryEl, {
+      path: eventHistoryPathEl?.value?.trim() || "",
+      relativeTimes: Boolean(eventHistoryRelativeTimeEl?.checked),
+    });
+  }
+
+  if (eventHistoryPathEl) {
+    eventHistoryPathEl.addEventListener("input", () => {
+      renderMetadataViewer();
+    });
+  }
+
+  if (eventHistoryRelativeTimeEl) {
+    eventHistoryRelativeTimeEl.addEventListener("change", () => {
+      renderMetadataViewer();
+    });
+  }
 
   function setTelemetryValues(lane, accY, accZ, yaw) {
     if (laneValueEl) laneValueEl.textContent = `PIL: ${fmtSigned(lane, 3)}`;
@@ -90,6 +112,7 @@ export function createTelemetryGraphs({
     inertialChart = null;
     yawChart = null;
     telemetryModel = null;
+    currentMetadata = null;
     smoothedAccYByWindow = null;
     smoothedAccZByWindow = null;
     smoothedYawByWindow = null;
@@ -109,7 +132,8 @@ export function createTelemetryGraphs({
 
   function initFromMetadata(metadata, initialTimeSec = 0) {
     destroy();
-    renderExtendedEventHistory(metadata, eventHistoryEl);
+    currentMetadata = metadata;
+    renderMetadataViewer();
 
     telemetryModel = buildTelemetryModel(metadata);
     if (!telemetryModel || !window.Plotly || !laneChartEl || !inertialChartEl || !yawChartEl) return;

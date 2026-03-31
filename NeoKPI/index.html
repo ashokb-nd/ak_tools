@@ -109,7 +109,14 @@
               </div>
             </div>
             <div class="telemetry-chart-card" data-graph-key="event-history">
-              <div class="telemetry-chart-title">Drowsy Sensor Fusion Extended Event History</div>
+              <div class="telemetry-chart-title">Metadata Viewer</div>
+              <div class="telemetry-json-toolbar">
+                <input id="telemetry-event-history-path" class="telemetry-json-path-input" type="text" value="inference_data.observations_data.drowsy_sensor_fusion_events_extended_event_history" spellcheck="false" />
+                <label class="telemetry-json-toggle">
+                  <input id="telemetry-event-history-relative-time" type="checkbox" />
+                  <span>Seconds from start</span>
+                </label>
+              </div>
               <div id="telemetry-event-history" class="telemetry-json-view"></div>
             </div>
           </div>

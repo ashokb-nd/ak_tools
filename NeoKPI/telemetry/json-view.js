@@ -5,6 +5,67 @@ function createJsonToken(className, text) {
   return span;
 }
 
+function getPathSegments(path) {
+  return String(path || "").trim().match(/[^.[\]]+/g) || [];
+}
+
+function getValueAtPath(root, path) {
+  const segments = getPathSegments(path);
+  if (!segments.length) return { found: true, value: root };
+
+  let current = root;
+  for (const segment of segments) {
+    if (current == null) return { found: false, value: null };
+    if (Array.isArray(current) && /^\d+$/.test(segment)) {
+      const index = Number(segment);
+      if (index < 0 || index >= current.length) return { found: false, value: null };
+      current = current[index];
+      continue;
+    }
+    if (typeof current !== "object" || !(segment in current)) return { found: false, value: null };
+    current = current[segment];
+  }
+
+  return { found: true, value: current };
+}
+
+function shouldConvertEpochValue(key, value, startTimeMs) {
+  if (!Number.isFinite(value) || !Number.isFinite(startTimeMs)) return false;
+
+  const keyText = String(key || "").toLowerCase();
+  const looksLikeTimeKey = /(^ts$|time|timestamp|epoch)/.test(keyText);
+  const closeToStartTime = Math.abs(value - startTimeMs) <= 24 * 60 * 60 * 1000;
+  const looksLikeEpochMs = Math.abs(value) >= 1e11;
+  return (looksLikeTimeKey && looksLikeEpochMs) || closeToStartTime;
+}
+
+function roundRelativeSeconds(value, startTimeMs) {
+  return Math.round(((value - startTimeMs) / 1000) * 1000) / 1000;
+}
+
+function transformEpochsToRelativeSeconds(value, startTimeMs, key = "") {
+  if (!Number.isFinite(startTimeMs)) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item, index) => transformEpochsToRelativeSeconds(item, startTimeMs, String(index)));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [
+        childKey,
+        transformEpochsToRelativeSeconds(childValue, startTimeMs, childKey),
+      ]),
+    );
+  }
+
+  if (shouldConvertEpochValue(key, value, startTimeMs)) {
+    return roundRelativeSeconds(value, startTimeMs);
+  }
+
+  return value;
+}
+
 function createJsonPrimitiveNode(value) {
   if (value === null) return createJsonToken("telemetry-json-null", "null");
   if (typeof value === "string") return createJsonToken("telemetry-json-string", `"${value}"`);
@@ -56,19 +117,42 @@ function createJsonBranchNode(value, depth = 0) {
   return details;
 }
 
-export function renderExtendedEventHistory(metadata, eventHistoryEl) {
+export function renderExtendedEventHistory(metadata, eventHistoryEl, options = {}) {
   if (!eventHistoryEl) return;
 
-  const extdEh = metadata?.inference_data?.observations_data?.drowsy_sensor_fusion_events_extended_event_history ?? {};
+  const { path = "", relativeTimes = false } = options;
+
   eventHistoryEl.innerHTML = "";
+
+  const empty = document.createElement("div");
+  empty.className = "telemetry-json-empty";
+
+  if (!metadata || typeof metadata !== "object") {
+    empty.textContent = "No metadata loaded.";
+    eventHistoryEl.appendChild(empty);
+    return;
+  }
+
+  const { found, value } = getValueAtPath(metadata, path);
+
+  if (!found) {
+    empty.textContent = `Path not found: ${path}`;
+    eventHistoryEl.appendChild(empty);
+    return;
+  }
+
+  const startTimeMs = Number(metadata?.startTime);
+  const displayValue = relativeTimes
+    ? transformEpochsToRelativeSeconds(value, startTimeMs)
+    : value;
 
   const root = document.createElement("div");
   root.className = "telemetry-json-tree";
 
-  if (extdEh && typeof extdEh === "object") {
-    root.appendChild(createJsonBranchNode(extdEh));
+  if (displayValue && typeof displayValue === "object") {
+    root.appendChild(createJsonBranchNode(displayValue));
   } else {
-    root.appendChild(createJsonPrimitiveNode(extdEh));
+    root.appendChild(createJsonPrimitiveNode(displayValue));
   }
 
   eventHistoryEl.appendChild(root);

@@ -33,8 +33,13 @@ const telemetrySmoothSliderEl = document.querySelector("#telemetry-smooth-slider
 const telemetryYawSmoothSliderEl = document.querySelector("#telemetry-yaw-smooth-slider");
 const telemetryGridEl = document.querySelector("#telemetry-grid");
 const telemetryLayoutResetEl = document.querySelector("#telemetry-layout-reset");
+const telemetryEventHistoryPathEl = document.querySelector("#telemetry-event-history-path");
+const telemetryEventHistoryRelativeTimeEl = document.querySelector("#telemetry-event-history-relative-time");
 
 const TELEMETRY_LAYOUT_STORAGE_KEY = "neoKpi.telemetryGraphOrder.v1";
+const TELEMETRY_METADATA_VIEWER_STORAGE_KEY = "neoKpi.telemetryMetadataViewer.v1";
+const DEFAULT_TELEMETRY_METADATA_PATH = telemetryEventHistoryPathEl?.value || "";
+const DEFAULT_TELEMETRY_METADATA_RELATIVE_TIME = Boolean(telemetryEventHistoryRelativeTimeEl?.checked);
 
 // State
 let activeDetail = null;
@@ -54,6 +59,8 @@ const telemetryGraphs = createTelemetryGraphs({
   inertialChartEl: document.querySelector("#telemetry-inertial-chart"),
   yawChartEl: document.querySelector("#telemetry-yaw-chart"),
   eventHistoryEl: document.querySelector("#telemetry-event-history"),
+  eventHistoryPathEl: telemetryEventHistoryPathEl,
+  eventHistoryRelativeTimeEl: telemetryEventHistoryRelativeTimeEl,
   laneValueEl: document.querySelector("#telemetry-lane-value"),
   lateralValueEl: document.querySelector("#telemetry-lateral-value"),
   drivingValueEl: document.querySelector("#telemetry-driving-value"),
@@ -94,6 +101,52 @@ function writeTelemetryLayoutOrder(order) {
   } catch {
     // Ignore storage failures; drag-and-drop still works for this session.
   }
+}
+
+function readTelemetryMetadataViewerSettings() {
+  try {
+    const raw = window.localStorage.getItem(TELEMETRY_METADATA_VIEWER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      path: typeof parsed.path === "string" ? parsed.path : DEFAULT_TELEMETRY_METADATA_PATH,
+      relativeTime: Boolean(parsed.relativeTime),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeTelemetryMetadataViewerSettings(settings) {
+  try {
+    window.localStorage.setItem(TELEMETRY_METADATA_VIEWER_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // Ignore storage failures; controls still work for this session.
+  }
+}
+
+function applyTelemetryMetadataViewerSettings(settings, dispatch = false) {
+  if (telemetryEventHistoryPathEl) {
+    telemetryEventHistoryPathEl.value = settings?.path ?? DEFAULT_TELEMETRY_METADATA_PATH;
+    if (dispatch) telemetryEventHistoryPathEl.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  if (telemetryEventHistoryRelativeTimeEl) {
+    telemetryEventHistoryRelativeTimeEl.checked = Boolean(settings?.relativeTime);
+    if (dispatch) telemetryEventHistoryRelativeTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
+
+function getTelemetryMetadataViewerSettingsFromDom() {
+  return {
+    path: telemetryEventHistoryPathEl?.value ?? DEFAULT_TELEMETRY_METADATA_PATH,
+    relativeTime: Boolean(telemetryEventHistoryRelativeTimeEl?.checked),
+  };
+}
+
+function persistTelemetryMetadataViewerSettings() {
+  writeTelemetryMetadataViewerSettings(getTelemetryMetadataViewerSettingsFromDom());
 }
 
 function saveTelemetryLayoutFromDom() {
@@ -145,6 +198,17 @@ function initTelemetryLayoutControls() {
   const storedOrder = readTelemetryLayoutOrder();
   if (storedOrder?.length) applyTelemetryLayoutOrder(storedOrder);
 
+  const storedMetadataViewerSettings = readTelemetryMetadataViewerSettings();
+  applyTelemetryMetadataViewerSettings(
+    storedMetadataViewerSettings || {
+      path: DEFAULT_TELEMETRY_METADATA_PATH,
+      relativeTime: DEFAULT_TELEMETRY_METADATA_RELATIVE_TIME,
+    },
+  );
+
+  telemetryEventHistoryPathEl?.addEventListener("input", persistTelemetryMetadataViewerSettings);
+  telemetryEventHistoryRelativeTimeEl?.addEventListener("change", persistTelemetryMetadataViewerSettings);
+
   let draggedCard = null;
 
   for (const card of getTelemetryCards()) {
@@ -194,6 +258,11 @@ function initTelemetryLayoutControls() {
     telemetryLayoutResetEl.addEventListener("click", () => {
       applyTelemetryLayoutOrder(defaultOrder);
       writeTelemetryLayoutOrder(defaultOrder);
+      applyTelemetryMetadataViewerSettings({
+        path: DEFAULT_TELEMETRY_METADATA_PATH,
+        relativeTime: DEFAULT_TELEMETRY_METADATA_RELATIVE_TIME,
+      }, true);
+      persistTelemetryMetadataViewerSettings();
       clearTelemetryDropHints();
       triggerTelemetryRelayout();
     });
