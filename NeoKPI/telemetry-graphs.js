@@ -13,8 +13,8 @@ const ALERT_EVENT_CONFIG = {
   "900.0.0.1": {
     name: "EEC_1S",
     description: "900.0.0.1 event",
-    markerColor: "rgba(255, 100, 100, 0.95)",
-    fillColor: "rgba(255, 100, 100, 0.14)",
+    markerColor: "rgba(39, 168, 0, 0.95)",
+    fillColor: "rgba(126, 236, 109, 0.14)",
   },
 };
 
