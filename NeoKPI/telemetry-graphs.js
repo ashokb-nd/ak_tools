@@ -18,6 +18,33 @@ const ALERT_EVENT_CONFIG = {
   },
 };
 
+class CustomEvent {
+  constructor(eventCode, startOffsetMs, endOffsetMs, config = {}) {
+    this.eventCode = String(eventCode);
+    this.startOffsetMs = Number(startOffsetMs);
+    this.endOffsetMs = Number(endOffsetMs);
+    this.name = config.name || `Event ${eventCode}`;
+    this.description = config.description || `Custom event ${eventCode}`;
+    this.markerColor = config.markerColor || "rgba(200, 100, 255, 0.95)";
+    this.fillColor = config.fillColor || "rgba(200, 100, 255, 0.14)";
+  }
+
+  isValid() {
+    return (
+      Number.isFinite(this.startOffsetMs)
+      && Number.isFinite(this.endOffsetMs)
+      && this.endOffsetMs >= this.startOffsetMs
+    );
+  }
+}
+
+function createCustomEvents(metadata) {
+  if (!metadata || typeof metadata !== "object") return [];
+
+  // Override this hook with domain logic to generate dynamic custom events.
+  return [];
+}
+
 function fmtSigned(value, digits = 3) {
   if (!Number.isFinite(value)) return "--";
   const normalized = Math.abs(value) < 1e-6 ? 0 : value;
@@ -177,24 +204,32 @@ function computeMaxX(model) {
   return Math.max(1, Math.round(maxX));
 }
 
-function extractAlertSpansByCode(metadata, eventCode) {
+function extractAlertSpansByCode(metadata, eventCode, customEvents = []) {
   const events = metadata?.inference_data?.events_data?.alerts;
-  if (!Array.isArray(events)) return [];
-
   const spans = [];
-  for (const event of events) {
-    if (String(event?.event_code) !== eventCode) continue;
 
-    const startOffsetMs = Number(event?.start_timestamp);
-    const endOffsetMs = Number(event?.end_timestamp);
-    const startSec = Number.isFinite(startOffsetMs) ? startOffsetMs / 1000 : null;
-    const endSec = Number.isFinite(endOffsetMs) ? endOffsetMs / 1000 : null;
+  if (Array.isArray(events)) {
+    for (const event of events) {
+      if (String(event?.event_code) !== eventCode) continue;
 
-    if (!Number.isFinite(startSec) || !Number.isFinite(endSec) || endSec < startSec) continue;
+      const startOffsetMs = Number(event?.start_timestamp);
+      const endOffsetMs = Number(event?.end_timestamp);
+      const startSec = Number.isFinite(startOffsetMs) ? startOffsetMs / 1000 : null;
+      const endSec = Number.isFinite(endOffsetMs) ? endOffsetMs / 1000 : null;
+
+      if (!Number.isFinite(startSec) || !Number.isFinite(endSec) || endSec < startSec) continue;
+
+      spans.push({ startSec, endSec });
+    }
+  }
+
+  for (const customEvent of customEvents) {
+    if (String(customEvent?.eventCode) !== eventCode) continue;
+    if (typeof customEvent?.isValid !== "function" || !customEvent.isValid()) continue;
 
     spans.push({
-      startSec,
-      endSec,
+      startSec: customEvent.startOffsetMs / 1000,
+      endSec: customEvent.endOffsetMs / 1000,
     });
   }
 
@@ -235,20 +270,27 @@ function createShapesFromSpans(spans, xMax, markerColor, fillColor) {
     });
 }
 
-function getAllAlertShapes(metadata, xMax) {
+function getAllAlertShapes(metadata, xMax, alertConfig = ALERT_EVENT_CONFIG, customEvents = []) {
   const allShapes = [];
-  for (const [eventCode, config] of Object.entries(ALERT_EVENT_CONFIG)) {
-    const spans = extractAlertSpansByCode(metadata, eventCode);
+  for (const [eventCode, config] of Object.entries(alertConfig)) {
+    const spans = extractAlertSpansByCode(metadata, eventCode, customEvents);
     const shapes = createShapesFromSpans(spans, xMax, config.markerColor, config.fillColor);
     allShapes.push(...shapes);
   }
   return allShapes;
 }
 
-function getAllAlertHoverTraces(metadata, xMax, yMin, yMax) {
+function getAllAlertHoverTraces(
+  metadata,
+  xMax,
+  yMin,
+  yMax,
+  alertConfig = ALERT_EVENT_CONFIG,
+  customEvents = [],
+) {
   const traces = [];
-  for (const [eventCode, config] of Object.entries(ALERT_EVENT_CONFIG)) {
-    const spans = extractAlertSpansByCode(metadata, eventCode);
+  for (const [eventCode, config] of Object.entries(alertConfig)) {
+    const spans = extractAlertSpansByCode(metadata, eventCode, customEvents);
     for (const span of spans) {
       const x0 = Math.max(0, Math.min(span.startSec, xMax));
       const x1 = Math.max(0, Math.min(span.endSec, xMax));
@@ -306,10 +348,29 @@ function buildTelemetryModel(metadata) {
   const accY = downsampleSeries(rawInertial.accY);
   const accZ = downsampleSeries(rawInertial.accZ);
   const yawSeries = downsampleSeries(parseYawSeries(metadata?.sensorMetaData, startEpochMs));
+  const customEvents = createCustomEvents(metadata).filter(event => event?.isValid?.());
 
   if (!laneSeries.length && !accY.length && !accZ.length && !yawSeries.length) return null;
 
-  const model = { laneSeries, accY, accZ, yawSeries, startEpochMs };
+  const mergedAlertConfig = { ...ALERT_EVENT_CONFIG };
+  for (const customEvent of customEvents) {
+    mergedAlertConfig[customEvent.eventCode] = {
+      name: customEvent.name,
+      description: customEvent.description,
+      markerColor: customEvent.markerColor,
+      fillColor: customEvent.fillColor,
+    };
+  }
+
+  const model = {
+    laneSeries,
+    accY,
+    accZ,
+    yawSeries,
+    startEpochMs,
+    customEvents,
+    mergedAlertConfig,
+  };
   model.xMax = computeMaxX(model);
   return model;
 }
@@ -556,8 +617,20 @@ export function createTelemetryGraphs({
     );
 
     const cfg = { displayModeBar: false, responsive: true, staticPlot: false };
-    const alertShapes = getAllAlertShapes(metadata, telemetryModel.xMax);
-    const laneAlertHoverTraces = getAllAlertHoverTraces(metadata, telemetryModel.xMax, -0.5, 0.5);
+    const alertShapes = getAllAlertShapes(
+      metadata,
+      telemetryModel.xMax,
+      telemetryModel.mergedAlertConfig,
+      telemetryModel.customEvents,
+    );
+    const laneAlertHoverTraces = getAllAlertHoverTraces(
+      metadata,
+      telemetryModel.xMax,
+      -0.5,
+      0.5,
+      telemetryModel.mergedAlertConfig,
+      telemetryModel.customEvents,
+    );
 
     window.Plotly.react(
       laneChartEl,
