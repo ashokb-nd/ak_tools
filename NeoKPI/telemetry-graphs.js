@@ -6,11 +6,13 @@ const DEFAULT_SMOOTHING_INDEX = Math.max(0, SMOOTHING_WINDOWS.indexOf(7));
 const ALERT_EVENT_CONFIG = {
   "900.0.1.0": {
     name: "DSF",
+    description: "900.0.1.0 event",
     markerColor: "rgba(100, 200, 255, 0.95)",
     fillColor: "rgba(100, 200, 255, 0.14)",
   },
   "900.0.0.1": {
     name: "EEC_1S",
+    description: "900.0.0.1 event",
     markerColor: "rgba(255, 100, 100, 0.95)",
     fillColor: "rgba(255, 100, 100, 0.14)",
   },
@@ -241,6 +243,46 @@ function getAllAlertShapes(metadata, xMax) {
     allShapes.push(...shapes);
   }
   return allShapes;
+}
+
+function getAllAlertHoverTraces(metadata, xMax, yMin, yMax) {
+  const traces = [];
+  for (const [eventCode, config] of Object.entries(ALERT_EVENT_CONFIG)) {
+    const spans = extractAlertSpansByCode(metadata, eventCode);
+    for (const span of spans) {
+      const x0 = Math.max(0, Math.min(span.startSec, xMax));
+      const x1 = Math.max(0, Math.min(span.endSec, xMax));
+      if (x1 < x0) continue;
+
+      if (x0 === x1) {
+        traces.push({
+          type: "scatter",
+          mode: "markers",
+          marker: { opacity: 0, size: 8 },
+          x: [x0],
+          y: [(yMin + yMax) / 2],
+          hovertemplate: `<b>${config.name}</b><br><span style="font-size:11px">${config.description}</span><extra></extra>`,
+          showlegend: false,
+          name: config.name, // this is showing in the legend
+        });
+      } else {
+        traces.push({
+          type: "scatter",
+          mode: "none",
+          x: [x0, x1, x1, x0, x0],
+          y: [yMin, yMin, yMax, yMax, yMin],
+          fill: "toself",
+          fillcolor: "rgba(0,0,0,0)",
+          line: { width: 0 },
+          hoveron: "fills",
+          hovertemplate: `<b>${config.name}</b><br><span style="font-size:11px">${config.description}</span><extra></extra>`,
+          showlegend: false,
+          name: config.name,
+        });
+      }
+    }
+  }
+  return traces;
 }
 
 function buildTelemetryModel(metadata) {
@@ -515,10 +557,11 @@ export function createTelemetryGraphs({
 
     const cfg = { displayModeBar: false, responsive: true, staticPlot: false };
     const alertShapes = getAllAlertShapes(metadata, telemetryModel.xMax);
+    const laneAlertHoverTraces = getAllAlertHoverTraces(metadata, telemetryModel.xMax, -0.5, 0.5);
 
     window.Plotly.react(
       laneChartEl,
-      [laneTrace],
+      [laneTrace, ...laneAlertHoverTraces],
       plotLayout("Lane Offset", telemetryModel.xMax, -0.5, 0.5, [
         {
           type: "line",
