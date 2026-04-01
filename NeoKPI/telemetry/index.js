@@ -19,9 +19,13 @@ export function createTelemetryGraphs({
   inertialChartEl,
   yawChartEl,
   eventHistoryEl,
+  eventHistoryEl2,
   eventHistoryPathEl,
   eventHistoryRelativeTimeEl,
   eventHistoryKeepOpenEl,
+  eventHistoryPathEl2,
+  eventHistoryRelativeTimeEl2,
+  eventHistoryKeepOpenEl2,
   laneValueEl,
   lateralValueEl,
   drivingValueEl,
@@ -43,12 +47,17 @@ export function createTelemetryGraphs({
   let smoothedYawByWindow = null;
   let currentMetadata = null;
 
-  function renderMetadataViewer() {
-    renderExtendedEventHistory(currentMetadata, eventHistoryEl, {
-      path: eventHistoryPathEl?.value?.trim() || "",
-      relativeTimes: Boolean(eventHistoryRelativeTimeEl?.checked),
-      keepOpen: Boolean(eventHistoryKeepOpenEl?.checked),
+  function renderMetadataViewerCard(viewEl, pathEl, relativeTimeEl, keepOpenEl) {
+    renderExtendedEventHistory(currentMetadata, viewEl, {
+      path: pathEl?.value?.trim() || "",
+      relativeTimes: Boolean(relativeTimeEl?.checked),
+      keepOpen: Boolean(keepOpenEl?.checked),
     });
+  }
+
+  function renderMetadataViewer() {
+    renderMetadataViewerCard(eventHistoryEl, eventHistoryPathEl, eventHistoryRelativeTimeEl, eventHistoryKeepOpenEl);
+    renderMetadataViewerCard(eventHistoryEl2, eventHistoryPathEl2, eventHistoryRelativeTimeEl2, eventHistoryKeepOpenEl2);
   }
 
   if (eventHistoryPathEl) {
@@ -65,6 +74,24 @@ export function createTelemetryGraphs({
 
   if (eventHistoryKeepOpenEl) {
     eventHistoryKeepOpenEl.addEventListener("change", () => {
+      renderMetadataViewer();
+    });
+  }
+
+  if (eventHistoryPathEl2) {
+    eventHistoryPathEl2.addEventListener("input", () => {
+      renderMetadataViewer();
+    });
+  }
+
+  if (eventHistoryRelativeTimeEl2) {
+    eventHistoryRelativeTimeEl2.addEventListener("change", () => {
+      renderMetadataViewer();
+    });
+  }
+
+  if (eventHistoryKeepOpenEl2) {
+    eventHistoryKeepOpenEl2.addEventListener("change", () => {
       renderMetadataViewer();
     });
   }
@@ -125,6 +152,7 @@ export function createTelemetryGraphs({
     smoothedAccZByWindow = null;
     smoothedYawByWindow = null;
     if (eventHistoryEl) eventHistoryEl.innerHTML = "";
+    if (eventHistoryEl2) eventHistoryEl2.innerHTML = "";
     setTelemetryValues(null, null, null, null);
     if (smoothSliderEl) {
       smoothSliderEl.disabled = true;

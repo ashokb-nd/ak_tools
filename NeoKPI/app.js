@@ -36,6 +36,9 @@ const telemetryLayoutResetEl = document.querySelector("#telemetry-layout-reset")
 const telemetryEventHistoryPathEl = document.querySelector("#telemetry-event-history-path");
 const telemetryEventHistoryRelativeTimeEl = document.querySelector("#telemetry-event-history-relative-time");
 const telemetryEventHistoryKeepOpenEl = document.querySelector("#telemetry-event-history-keep-open");
+const telemetryEventHistoryPath2El = document.querySelector("#telemetry-event-history-path-2");
+const telemetryEventHistoryRelativeTime2El = document.querySelector("#telemetry-event-history-relative-time-2");
+const telemetryEventHistoryKeepOpen2El = document.querySelector("#telemetry-event-history-keep-open-2");
 
 const TELEMETRY_LAYOUT_STORAGE_KEY = "neoKpi.telemetryGraphOrder.v1";
 const TELEMETRY_METADATA_VIEWER_STORAGE_KEY = "neoKpi.telemetryMetadataViewer.v1";
@@ -61,9 +64,13 @@ const telemetryGraphs = createTelemetryGraphs({
   inertialChartEl: document.querySelector("#telemetry-inertial-chart"),
   yawChartEl: document.querySelector("#telemetry-yaw-chart"),
   eventHistoryEl: document.querySelector("#telemetry-event-history"),
+  eventHistoryEl2: document.querySelector("#telemetry-event-history-2"),
   eventHistoryPathEl: telemetryEventHistoryPathEl,
   eventHistoryRelativeTimeEl: telemetryEventHistoryRelativeTimeEl,
   eventHistoryKeepOpenEl: telemetryEventHistoryKeepOpenEl,
+  eventHistoryPathEl2: telemetryEventHistoryPath2El,
+  eventHistoryRelativeTimeEl2: telemetryEventHistoryRelativeTime2El,
+  eventHistoryKeepOpenEl2: telemetryEventHistoryKeepOpen2El,
   laneValueEl: document.querySelector("#telemetry-lane-value"),
   lateralValueEl: document.querySelector("#telemetry-lateral-value"),
   drivingValueEl: document.querySelector("#telemetry-driving-value"),
