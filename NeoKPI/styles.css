@@ -581,13 +581,14 @@ body {
   margin: 0;
 }
 
-.telemetry-function-toolbar {
+.telemetry-function-input-row {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
-.telemetry-function-toolbar button {
+.telemetry-function-input-row button {
   height: 28px;
   padding: 0 10px;
   border: 1px solid var(--border);
@@ -598,7 +599,7 @@ body {
   cursor: pointer;
 }
 
-.telemetry-function-toolbar button:hover {
+.telemetry-function-input-row button:hover {
   border-color: var(--brand);
   color: var(--text);
 }
@@ -623,12 +624,19 @@ body {
 }
 
 .telemetry-function-input {
-  min-height: 92px;
-  margin-bottom: 8px;
+  flex: 1;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  resize: none;
+  margin-bottom: 0;
 }
 
 .telemetry-function-output {
-  min-height: 120px;
+  height: 110px;
+  min-height: 110px;
+  max-height: 110px;
+  resize: none;
 }
 
 .telemetry-json-tree {
