@@ -39,12 +39,17 @@ const telemetryEventHistoryKeepOpenEl = document.querySelector("#telemetry-event
 const telemetryEventHistoryPath2El = document.querySelector("#telemetry-event-history-path-2");
 const telemetryEventHistoryRelativeTime2El = document.querySelector("#telemetry-event-history-relative-time-2");
 const telemetryEventHistoryKeepOpen2El = document.querySelector("#telemetry-event-history-keep-open-2");
+const telemetryFunctionInputEl = document.querySelector("#telemetry-function-input");
+const telemetryFunctionRunEl = document.querySelector("#telemetry-function-run");
+const telemetryFunctionOutputEl = document.querySelector("#telemetry-function-output");
 
 const TELEMETRY_LAYOUT_STORAGE_KEY = "neoKpi.telemetryGraphOrder.v1";
 const TELEMETRY_METADATA_VIEWER_STORAGE_KEY = "neoKpi.telemetryMetadataViewer.v1";
+const TELEMETRY_FUNCTION_STORAGE_KEY = "neoKpi.telemetryFunction.v1";
 const DEFAULT_TELEMETRY_METADATA_PATH = telemetryEventHistoryPathEl?.value || "";
 const DEFAULT_TELEMETRY_METADATA_RELATIVE_TIME = Boolean(telemetryEventHistoryRelativeTimeEl?.checked);
 const DEFAULT_TELEMETRY_METADATA_KEEP_OPEN = Boolean(telemetryEventHistoryKeepOpenEl?.checked);
+const DEFAULT_TELEMETRY_FUNCTION_SOURCE = telemetryFunctionInputEl?.value || "";
 
 // State
 let activeDetail = null;
@@ -71,6 +76,9 @@ const telemetryGraphs = createTelemetryGraphs({
   eventHistoryPathEl2: telemetryEventHistoryPath2El,
   eventHistoryRelativeTimeEl2: telemetryEventHistoryRelativeTime2El,
   eventHistoryKeepOpenEl2: telemetryEventHistoryKeepOpen2El,
+  functionInputEl: telemetryFunctionInputEl,
+  functionRunEl: telemetryFunctionRunEl,
+  functionOutputEl: telemetryFunctionOutputEl,
   laneValueEl: document.querySelector("#telemetry-lane-value"),
   lateralValueEl: document.querySelector("#telemetry-lateral-value"),
   drivingValueEl: document.querySelector("#telemetry-driving-value"),
@@ -166,6 +174,33 @@ function persistTelemetryMetadataViewerSettings() {
   writeTelemetryMetadataViewerSettings(getTelemetryMetadataViewerSettingsFromDom());
 }
 
+function readTelemetryFunctionSource() {
+  try {
+    const raw = window.localStorage.getItem(TELEMETRY_FUNCTION_STORAGE_KEY);
+    return typeof raw === "string" ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeTelemetryFunctionSource(source) {
+  try {
+    window.localStorage.setItem(TELEMETRY_FUNCTION_STORAGE_KEY, String(source ?? ""));
+  } catch {
+    // Ignore storage failures; function editor still works for this session.
+  }
+}
+
+function applyTelemetryFunctionSource(source, dispatchRun = false) {
+  if (!telemetryFunctionInputEl) return;
+  telemetryFunctionInputEl.value = source ?? DEFAULT_TELEMETRY_FUNCTION_SOURCE;
+  if (dispatchRun) telemetryFunctionRunEl?.click();
+}
+
+function persistTelemetryFunctionSourceFromDom() {
+  writeTelemetryFunctionSource(telemetryFunctionInputEl?.value ?? DEFAULT_TELEMETRY_FUNCTION_SOURCE);
+}
+
 function saveTelemetryLayoutFromDom() {
   const order = getTelemetryCards().map(card => card.dataset.graphKey).filter(Boolean);
   writeTelemetryLayoutOrder(order);
@@ -224,9 +259,13 @@ function initTelemetryLayoutControls() {
     },
   );
 
+  const storedFunctionSource = readTelemetryFunctionSource();
+  applyTelemetryFunctionSource(storedFunctionSource ?? DEFAULT_TELEMETRY_FUNCTION_SOURCE);
+
   telemetryEventHistoryPathEl?.addEventListener("input", persistTelemetryMetadataViewerSettings);
   telemetryEventHistoryRelativeTimeEl?.addEventListener("change", persistTelemetryMetadataViewerSettings);
   telemetryEventHistoryKeepOpenEl?.addEventListener("change", persistTelemetryMetadataViewerSettings);
+  telemetryFunctionInputEl?.addEventListener("input", persistTelemetryFunctionSourceFromDom);
 
   let draggedCard = null;
 
@@ -283,6 +322,8 @@ function initTelemetryLayoutControls() {
         keepOpen: DEFAULT_TELEMETRY_METADATA_KEEP_OPEN,
       }, true);
       persistTelemetryMetadataViewerSettings();
+      applyTelemetryFunctionSource(DEFAULT_TELEMETRY_FUNCTION_SOURCE, true);
+      writeTelemetryFunctionSource(DEFAULT_TELEMETRY_FUNCTION_SOURCE);
       clearTelemetryDropHints();
       triggerTelemetryRelayout();
     });

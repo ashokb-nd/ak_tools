@@ -26,6 +26,9 @@ export function createTelemetryGraphs({
   eventHistoryPathEl2,
   eventHistoryRelativeTimeEl2,
   eventHistoryKeepOpenEl2,
+  functionInputEl,
+  functionRunEl,
+  functionOutputEl,
   laneValueEl,
   lateralValueEl,
   drivingValueEl,
@@ -46,6 +49,43 @@ export function createTelemetryGraphs({
   let smoothedAccZByWindow = null;
   let smoothedYawByWindow = null;
   let currentMetadata = null;
+
+  function formatFunctionOutput(value) {
+    if (typeof value === "string") return value;
+    if (value === undefined) return "undefined";
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }
+
+  function runMetadataFunction() {
+    if (!functionOutputEl) return;
+    if (!currentMetadata) {
+      functionOutputEl.value = "No metadata loaded.";
+      return;
+    }
+
+    const source = functionInputEl?.value?.trim() || "";
+    if (!source) {
+      functionOutputEl.value = "Enter a function first.";
+      return;
+    }
+
+    try {
+      let result;
+      try {
+        const candidate = new Function(`return (${source});`)();
+        result = typeof candidate === "function" ? candidate(currentMetadata) : candidate;
+      } catch {
+        result = new Function("metadata", source)(currentMetadata);
+      }
+      functionOutputEl.value = formatFunctionOutput(result);
+    } catch (error) {
+      functionOutputEl.value = error instanceof Error ? error.stack || error.message : String(error);
+    }
+  }
 
   function renderMetadataViewerCard(viewEl, pathEl, relativeTimeEl, keepOpenEl) {
     renderExtendedEventHistory(currentMetadata, viewEl, {
@@ -93,6 +133,12 @@ export function createTelemetryGraphs({
   if (eventHistoryKeepOpenEl2) {
     eventHistoryKeepOpenEl2.addEventListener("change", () => {
       renderMetadataViewer();
+    });
+  }
+
+  if (functionRunEl) {
+    functionRunEl.addEventListener("click", () => {
+      runMetadataFunction();
     });
   }
 
@@ -153,6 +199,7 @@ export function createTelemetryGraphs({
     smoothedYawByWindow = null;
     if (eventHistoryEl) eventHistoryEl.innerHTML = "";
     if (eventHistoryEl2) eventHistoryEl2.innerHTML = "";
+    if (functionOutputEl) functionOutputEl.value = "";
     setTelemetryValues(null, null, null, null);
     if (smoothSliderEl) {
       smoothSliderEl.disabled = true;
@@ -170,6 +217,7 @@ export function createTelemetryGraphs({
     destroy();
     currentMetadata = metadata;
     renderMetadataViewer();
+    runMetadataFunction();
 
     telemetryModel = buildTelemetryModel(metadata);
     if (!telemetryModel || !window.Plotly || !laneChartEl || !inertialChartEl || !yawChartEl) return;

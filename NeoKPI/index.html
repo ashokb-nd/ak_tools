@@ -138,6 +138,14 @@
               </div>
               <div id="telemetry-event-history-2" class="telemetry-json-view"></div>
             </div>
+            <div class="telemetry-chart-card" data-graph-key="metadata-function">
+              <div class="telemetry-chart-title">Metadata Function</div>
+              <div class="telemetry-function-toolbar">
+                <button id="telemetry-function-run" type="button">Run</button>
+              </div>
+              <textarea id="telemetry-function-input" class="telemetry-code-editor telemetry-function-input" spellcheck="false">(metadata) => metadata?.inference_data?.observations_data?.drowsy_sensor_fusion_events_extended_event_history</textarea>
+              <textarea id="telemetry-function-output" class="telemetry-code-editor telemetry-function-output" readonly spellcheck="false"></textarea>
+            </div>
           </div>
         </section>
 

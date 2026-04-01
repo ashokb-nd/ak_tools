@@ -581,6 +581,56 @@ body {
   margin: 0;
 }
 
+.telemetry-function-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.telemetry-function-toolbar button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-label);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.telemetry-function-toolbar button:hover {
+  border-color: var(--brand);
+  color: var(--text);
+}
+
+.telemetry-code-editor {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(8, 11, 20, 0.72);
+  color: #d5dbee;
+  padding: 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  resize: vertical;
+}
+
+.telemetry-code-editor:focus {
+  outline: none;
+  border-color: rgba(127, 208, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(127, 208, 255, 0.12);
+}
+
+.telemetry-function-input {
+  min-height: 92px;
+  margin-bottom: 8px;
+}
+
+.telemetry-function-output {
+  min-height: 120px;
+}
+
 .telemetry-json-tree {
   font-size: 11px;
   line-height: 1.45;
