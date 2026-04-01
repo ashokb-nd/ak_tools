@@ -46,10 +46,30 @@ const telemetryFunctionOutputEl = document.querySelector("#telemetry-function-ou
 const TELEMETRY_LAYOUT_STORAGE_KEY = "neoKpi.telemetryGraphOrder.v1";
 const TELEMETRY_METADATA_VIEWER_STORAGE_KEY = "neoKpi.telemetryMetadataViewer.v1";
 const TELEMETRY_FUNCTION_STORAGE_KEY = "neoKpi.telemetryFunction.v1";
+const SECOND_VIDEO_CHOICE_STORAGE_KEY = "neoKpi.secondVideoChoice.v1";
 const DEFAULT_TELEMETRY_METADATA_PATH = telemetryEventHistoryPathEl?.value || "";
 const DEFAULT_TELEMETRY_METADATA_RELATIVE_TIME = Boolean(telemetryEventHistoryRelativeTimeEl?.checked);
 const DEFAULT_TELEMETRY_METADATA_KEEP_OPEN = Boolean(telemetryEventHistoryKeepOpenEl?.checked);
 const DEFAULT_TELEMETRY_FUNCTION_SOURCE = telemetryFunctionInputEl?.value || "";
+
+function readSecondVideoChoice() {
+  try {
+    const value = window.localStorage.getItem(SECOND_VIDEO_CHOICE_STORAGE_KEY);
+    return value && Object.prototype.hasOwnProperty.call(VIDEO_SECOND, value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSecondVideoChoice(value) {
+  try {
+    if (value && Object.prototype.hasOwnProperty.call(VIDEO_SECOND, value)) {
+      window.localStorage.setItem(SECOND_VIDEO_CHOICE_STORAGE_KEY, value);
+    }
+  } catch {
+    // Ignore storage failures; selection still works for this session.
+  }
+}
 
 // State
 let activeDetail = null;
@@ -779,6 +799,11 @@ async function init() {
   wireVideoSync();
   wireKeyboardShortcuts();
 
+  const savedSecondVideoChoice = readSecondVideoChoice();
+  if (savedSecondVideoChoice && secondVideoSelectEl) {
+    secondVideoSelectEl.value = savedSecondVideoChoice;
+  }
+
   const payload = await refreshAlerts();
   if ((payload.alerts || []).length > 0) {
     await loadAlert(payload.alerts[0].alertId);
@@ -812,6 +837,7 @@ alertIdInputEl.addEventListener("keydown", e => {
 });
 
 secondVideoSelectEl.addEventListener("change", () => {
+  writeSecondVideoChoice(secondVideoSelectEl.value);
   if (!activeDetail) return;
   applySecondVideo(activeDetail);
   refreshAnnotators().catch(err => console.error(err));
