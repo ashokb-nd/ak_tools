@@ -88,6 +88,7 @@ const telemetryGraphs = createTelemetryGraphs({
   laneChartEl: document.querySelector("#telemetry-lane-chart"),
   inertialChartEl: document.querySelector("#telemetry-inertial-chart"),
   yawChartEl: document.querySelector("#telemetry-yaw-chart"),
+  headPoseChartEl: document.querySelector("#telemetry-head-pose-chart"),
   eventHistoryEl: document.querySelector("#telemetry-event-history"),
   eventHistoryEl2: document.querySelector("#telemetry-event-history-2"),
   eventHistoryPathEl: telemetryEventHistoryPathEl,

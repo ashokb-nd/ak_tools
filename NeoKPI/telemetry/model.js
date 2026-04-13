@@ -92,6 +92,49 @@ function parseYawSeries(sensorMetaData, startEpochMs) {
   return yawSeries;
 }
 
+function parseHeadPoseSeries(metadata, startEpochMs) {
+  const detections = metadata?.inference_data?.dms?.detections;
+  if (!Array.isArray(detections)) {
+    return {
+      headPitchSeries: [],
+      headYawSeries: [],
+      headRollSeries: [],
+    };
+  }
+
+  const headPitchSeries = [];
+  const headYawSeries = [];
+  const headRollSeries = [];
+
+  detections.forEach((det, idx) => {
+    const headPyr = det?.head_pyr;
+    if (
+      !Array.isArray(headPyr)
+      || headPyr.length !== 3
+      || !headPyr.every(v => Number.isFinite(Number(v)))
+    ) {
+      return;
+    }
+
+    const tsRaw = Number(det?.ts);
+    if (!(tsRaw > 1e11)) return;
+    const x = (tsRaw - startEpochMs) / 1000;
+
+    const pitch = Number(headPyr[0]);
+    const yaw = Number(headPyr[1]);
+    const roll = Number(headPyr[2]);
+    headPitchSeries.push({ x, y: pitch });
+    headYawSeries.push({ x, y: yaw });
+    headRollSeries.push({ x, y: roll });
+  });
+
+  return {
+    headPitchSeries: downsampleSeries(headPitchSeries),
+    headYawSeries: downsampleSeries(headYawSeries),
+    headRollSeries: downsampleSeries(headRollSeries),
+  };
+}
+
 function getPilOffset(metadata) {
   const laneCalParams = metadata?.inference_data?.observations_data?.laneCalibrationParams;
   if (!Array.isArray(laneCalParams) || laneCalParams.length < 4) return 0;
@@ -150,7 +193,15 @@ function extractMinEpochMs(metadata, positionsInLane) {
 }
 
 function computeMaxX(model) {
-  const allSeries = [model.laneSeries, model.accY, model.accZ, model.yawSeries];
+  const allSeries = [
+    model.laneSeries,
+    model.accY,
+    model.accZ,
+    model.yawSeries,
+    model.headPitchSeries,
+    model.headYawSeries,
+    model.headRollSeries,
+  ];
   let maxX = 0;
   for (const series of allSeries) {
     if (!Array.isArray(series) || !series.length) continue;
@@ -181,9 +232,20 @@ export function buildTelemetryModel(metadata) {
   const accY = downsampleSeries(rawInertial.accY);
   const accZ = downsampleSeries(rawInertial.accZ);
   const yawSeries = downsampleSeries(parseYawSeries(metadata?.sensorMetaData, startEpochMs));
+  const headPose = parseHeadPoseSeries(metadata, startEpochMs);
   const customEvents = createCustomEvents(metadata).filter(event => event?.isValid?.());
 
-  if (!laneSeries.length && !accY.length && !accZ.length && !yawSeries.length) return null;
+  if (
+    !laneSeries.length
+    && !accY.length
+    && !accZ.length
+    && !yawSeries.length
+    && !headPose.headPitchSeries.length
+    && !headPose.headYawSeries.length
+    && !headPose.headRollSeries.length
+  ) {
+    return null;
+  }
 
   const mergedAlertConfig = buildMergedAlertConfig(customEvents);
   const model = {
@@ -191,6 +253,9 @@ export function buildTelemetryModel(metadata) {
     accY,
     accZ,
     yawSeries,
+    headPitchSeries: headPose.headPitchSeries,
+    headYawSeries: headPose.headYawSeries,
+    headRollSeries: headPose.headRollSeries,
     startEpochMs,
     customEvents,
     mergedAlertConfig,

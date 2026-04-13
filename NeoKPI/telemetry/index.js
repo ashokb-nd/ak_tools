@@ -18,6 +18,7 @@ export function createTelemetryGraphs({
   laneChartEl,
   inertialChartEl,
   yawChartEl,
+  headPoseChartEl,
   eventHistoryEl,
   eventHistoryEl2,
   eventHistoryPathEl,
@@ -42,6 +43,7 @@ export function createTelemetryGraphs({
   let laneChart = null;
   let inertialChart = null;
   let yawChart = null;
+  let headPoseChart = null;
   let lastTelemetryDrawMs = 0;
   let playheadRafId = null;
   let pendingPlayheadTime = 0;
@@ -168,6 +170,12 @@ export function createTelemetryGraphs({
         "shapes[0].x1": t,
       });
     }
+    if (headPoseChart && window.Plotly && headPoseChartEl) {
+      window.Plotly.relayout(headPoseChartEl, {
+        "shapes[0].x0": t,
+        "shapes[0].x1": t,
+      });
+    }
   }
 
   function schedulePlayheadDraw(t) {
@@ -188,10 +196,12 @@ export function createTelemetryGraphs({
       if (laneChart && laneChartEl) window.Plotly.purge(laneChartEl);
       if (inertialChart && inertialChartEl) window.Plotly.purge(inertialChartEl);
       if (yawChart && yawChartEl) window.Plotly.purge(yawChartEl);
+      if (headPoseChart && headPoseChartEl) window.Plotly.purge(headPoseChartEl);
     }
     laneChart = null;
     inertialChart = null;
     yawChart = null;
+    headPoseChart = null;
     telemetryModel = null;
     currentMetadata = null;
     smoothedAccYByWindow = null;
@@ -220,10 +230,15 @@ export function createTelemetryGraphs({
     runMetadataFunction();
 
     telemetryModel = buildTelemetryModel(metadata);
-    if (!telemetryModel || !window.Plotly || !laneChartEl || !inertialChartEl || !yawChartEl) return;
+    if (!telemetryModel || !window.Plotly || !laneChartEl || !inertialChartEl || !yawChartEl || !headPoseChartEl) return;
 
     const inertialRange = computeRobustYRange([telemetryModel.accY, telemetryModel.accZ], -10, 10);
     const yawRange = computeRobustYRange([telemetryModel.yawSeries], -3, 3);
+    const headPoseRange = computeRobustYRange(
+      [telemetryModel.headPitchSeries, telemetryModel.headYawSeries, telemetryModel.headRollSeries],
+      -60,
+      60,
+    );
 
     const laneTrace = {
       type: "scattergl",
@@ -263,6 +278,36 @@ export function createTelemetryGraphs({
       y: telemetryModel.yawSeries.map(p => p.y),
       line: { color: "#4da3ff", width: 1.8 },
       hovertemplate: "t=%{x:.2f}s<br>Yaw=%{y:.4f}<extra></extra>",
+    };
+
+    const headPitchTrace = {
+      type: "scattergl",
+      mode: "lines",
+      name: "Pitch",
+      x: telemetryModel.headPitchSeries.map(p => p.x),
+      y: telemetryModel.headPitchSeries.map(p => p.y),
+      line: { color: "#ffb84d", width: 1.8 },
+      hovertemplate: "t=%{x:.2f}s<br>Pitch=%{y:.4f}<extra></extra>",
+    };
+
+    const headYawTrace = {
+      type: "scattergl",
+      mode: "lines",
+      name: "Head Yaw",
+      x: telemetryModel.headYawSeries.map(p => p.x),
+      y: telemetryModel.headYawSeries.map(p => p.y),
+      line: { color: "#44d7b6", width: 1.8 },
+      hovertemplate: "t=%{x:.2f}s<br>HeadYaw=%{y:.4f}<extra></extra>",
+    };
+
+    const headRollTrace = {
+      type: "scattergl",
+      mode: "lines",
+      name: "Roll",
+      x: telemetryModel.headRollSeries.map(p => p.x),
+      y: telemetryModel.headRollSeries.map(p => p.y),
+      line: { color: "#b19cff", width: 1.8 },
+      hovertemplate: "t=%{x:.2f}s<br>Roll=%{y:.4f}<extra></extra>",
     };
 
     smoothedAccYByWindow = Object.fromEntries(
@@ -327,10 +372,17 @@ export function createTelemetryGraphs({
       plotLayout("Yaw", telemetryModel.xMax, yawRange.min, yawRange.max),
       cfg,
     );
+    window.Plotly.react(
+      headPoseChartEl,
+      [headPitchTrace, headYawTrace, headRollTrace],
+      plotLayout("Head Pose", telemetryModel.xMax, headPoseRange.min, headPoseRange.max),
+      cfg,
+    );
 
     laneChart = true;
     inertialChart = true;
     yawChart = true;
+    headPoseChart = true;
 
     if (smoothSliderEl) {
       smoothSliderEl.max = String(SMOOTHING_WINDOWS.length - 1);
