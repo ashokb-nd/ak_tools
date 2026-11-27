@@ -163,10 +163,37 @@ def downscale_video(video_path, output_path, compression_level=1):
         return False
 
 
+CAMERA_VIDEOS = ('0.mp4', '1.mp4', '8.mp4')
+
+
 def should_download_key(key, prefix):
-    allowed_files = {'0.mp4', '1.mp4', '8.mp4','metadata.txt'}
+    allowed_files = set(CAMERA_VIDEOS) | {'metadata.txt'}
+    allowed_files |= {v.replace('.mp4', '_transcoded.mp4') for v in CAMERA_VIDEOS}
     filename = key.replace(prefix + '/', '').split('/')[-1]
     return filename in allowed_files
+
+
+def select_download_objects(objects, prefix):
+    """Map local filename -> S3 object.
+
+    Each camera's original <cam>.mp4 is preferred; when only <cam>_transcoded.mp4
+    exists (e.g. video-fetch outputs, where the forward camera is stored
+    transcoded only), that copy is downloaded and saved as <cam>.mp4.
+    """
+    selected, fallbacks = {}, {}
+    for obj in objects:
+        if not should_download_key(obj.key, prefix):
+            continue
+        filename = obj.key.replace(prefix + '/', '').split('/')[-1]
+        if filename.endswith('_transcoded.mp4'):
+            fallbacks[filename.replace('_transcoded.mp4', '.mp4')] = obj
+        else:
+            selected[filename] = obj
+    for name, obj in fallbacks.items():
+        if name not in selected:
+            logger.info('%s missing; using %s instead', name, obj.key)
+            selected[name] = obj
+    return selected
 
 
 def requests_retry_session(retries=5, backoff_factor=1,
@@ -231,14 +258,9 @@ def download_data(bucket, prefix, down_dir, downscale=False, local_subdir=None, 
         os.makedirs(target_dir)
     s3_resource = boto3.resource('s3')
     bucket_obj = s3_resource.Bucket(bucket)
-    objects = (
-        obj for obj in bucket_obj.objects.filter(Prefix=prefix + '/')
-        if should_download_key(obj.key, prefix)
-    )
+    objects = select_download_objects(bucket_obj.objects.filter(Prefix=prefix + '/'), prefix)
     logger.debug('Downloading the requested data. This might take time')
-    for obj in objects:
-        tokens = obj.key.replace(prefix + '/', '').split('/')
-        filename = tokens[-1]
+    for filename, obj in objects.items():
         logger.info('Downloading %s', obj.key)
         if not osp.exists(target_dir):
             os.makedirs(target_dir)
